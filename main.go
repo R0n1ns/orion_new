@@ -12,8 +12,6 @@ import (
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/api/login", handlers.LoginHandler).Methods("POST")
-	r.HandleFunc("/api/chats", handlers.GetChatsHandler).Methods("GET")
-	r.HandleFunc("/api/chat/{id}", handlers.GetChatHandler).Methods("GET")
 	r.HandleFunc("/ws", handlers.WSmanager.HandleWebSocket)
 
 	// Wrap the router with CORS middleware

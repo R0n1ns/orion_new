@@ -117,10 +117,16 @@ func GetUsersInChat(chatid uint) ([]User, error) {
 	return users, nil
 
 }
+func IfReadedChat(chatid uint) bool {
+	var count int64
+	err := DB.Model(&Message{}).
+		Where("\"messages\".\"channel_id\" = ?", chatid).
+		Where("\"messages\".\"readed\" = false").
+		Where("\"messages\".\"deleted_at\" IS NULL").
+		Count(&count).Error
 
-//func main() {
-//	Migrate()
-//}
-/*
-
- */
+	if err != nil || count > 0 {
+		return false // есть непрочитанные сообщения
+	}
+	return true // нет непрочитанных сообщений
+}

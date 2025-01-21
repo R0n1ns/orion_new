@@ -100,8 +100,9 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			chatsJSON := make([]map[string]interface{}, len(chats))
 			for i, chat := range chats {
 				chatsJSON[i] = map[string]interface{}{
-					"id":   chat.ID,
-					"name": chat.Name,
+					"id":     chat.ID,
+					"name":   chat.Name,
+					"readed": data.IfReadedChat(chat.ID),
 				}
 			}
 
