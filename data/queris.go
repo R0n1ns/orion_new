@@ -37,7 +37,9 @@ func GetUserByID(userid uint) User {
 	DB.Where("id = ?", userid).Find(&user).Order("created_at desc")
 	return user
 }
-
+func ReadMessages(chatid float64, userid string) {
+	DB.Model(&Message{}).Where("user_id != ? and channel_id = ? and readed = false", userid, chatid).Update("readed", true)
+}
 func GetChatByID(chatid uint) Channel {
 	var chat Channel
 	DB.Where("id = ?", chatid).Find(&chat).Order("created_at desc")

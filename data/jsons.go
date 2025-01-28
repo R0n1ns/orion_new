@@ -33,12 +33,16 @@ type RcvdMessage struct {
 */
 
 // GetChat получить информацию о конкретном чате
+/*
+{method:"GetChat",query:{chatId:}}
+*/
 type GetChat struct {
 	ChatId uint `json:"chatId"`
 }
 
+// ReadMessags прочитать сообщения от пользователя
 /*
-{method:"GetChat",query:{chatId:}}
+{method:"ReadMessags",query:{chatId:,userId:}}
 */
 
 // ----- от сервера -----
@@ -73,6 +77,10 @@ func HandleRequest(data []byte, userID uint) (string, interface{}, error) {
 		msg.Message = dat["message"].(string)
 		msg.ChatId = uint(dat["chatId"].(float64))
 		return "RcvdMessage", msg, nil
+	case "ReadMessages":
+		dat := dt.Query.(map[string]interface{})
+		ReadMessages(dat["chatId"].(float64), dat["userId"].(string))
+		return "", nil, nil
 	case "GetChats":
 		chats, err := GetChannels(userID)
 		if err != nil {
