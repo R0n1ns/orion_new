@@ -37,6 +37,12 @@ func GetUserByID(userid uint) User {
 	return user
 }
 
+func GetChatByID(chatid uint) Channel {
+	var chat Channel
+	DB.Where("id = ?", chatid).Find(&chat).Order("created_at desc")
+	return chat
+}
+
 func GetChannels(userid uint) ([]Channel, error) {
 	var channels []Channel
 	err := DB.Model(&User{ID: userid}).Association("Channels").Find(&channels)
@@ -117,10 +123,11 @@ func GetUsersInChat(chatid uint) ([]User, error) {
 	return users, nil
 
 }
-func IfReadedChat(chatid uint) bool {
+func IfReadedChat(chatid uint, userID uint) bool {
 	var count int64
 	err := DB.Model(&Message{}).
 		Where("\"messages\".\"channel_id\" = ?", chatid).
+		Where("\"messages\".\"user_id\" != ?", userID).
 		Where("\"messages\".\"readed\" = false").
 		Where("\"messages\".\"deleted_at\" IS NULL").
 		Count(&count).Error

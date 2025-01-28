@@ -14,10 +14,10 @@ type Claims struct {
 }
 
 // Extract JWT token from cookies
-func extractJWT(r *http.Request) (uint, error) {
+func extractJWT(w http.ResponseWriter, r *http.Request) (uint, error) {
 	cookie, err := r.Cookie("jwt_token")
 	if err != nil {
-		fmt.Println(1, err)
+		//http.Error(w, "Unauthorized: Missing JWT", http.StatusUnauthorized)
 		return 0, err
 	}
 	secretKey := []byte(os.Getenv("JWT_SECRET"))

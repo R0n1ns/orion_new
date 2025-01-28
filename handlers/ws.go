@@ -34,9 +34,9 @@ func init() {
 // Handle WebSocket connections
 func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Extract and validate JWT token
-	userID, err := extractJWT(r)
+	userID, err := extractJWT(w, r)
 	if err != nil {
-		http.Error(w, "Unauthorized: Missing JWT", http.StatusUnauthorized)
+		http.Error(w, "Unauthorized: Missing or invalid JWT", http.StatusUnauthorized)
 		return
 	}
 
@@ -99,10 +99,12 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			chats := msg.([]data.Channel)
 			chatsJSON := make([]map[string]interface{}, len(chats))
 			for i, chat := range chats {
+
 				chatsJSON[i] = map[string]interface{}{
-					"id":     chat.ID,
-					"name":   chat.Name,
-					"readed": data.IfReadedChat(chat.ID),
+					"id":      chat.ID,
+					"name":    chat.Name,
+					"readed":  data.IfReadedChat(chat.ID, userID),
+					"Private": chat.IsPrivate,
 				}
 			}
 
@@ -122,10 +124,16 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		case "GetChat":
 			chat := msg.(data.GetChat)
 			id := chat.ChatId
+			var lastreadedid uint
 			allMasseges, err := data.GetChanMassages(uint(id))
-			masseges := make([]map[string]string, 0, len(allMasseges))
+			masseges := make([]map[string]interface{}, 0, len(allMasseges))
+			lst := false
 			for _, massege := range allMasseges {
-				masseges = append(masseges, map[string]string{
+				if lst == true && !massege.Readed {
+					lastreadedid = massege.ID
+				}
+				lst = massege.Readed
+				masseges = append(masseges, map[string]interface{}{
 					"ID":         strconv.FormatUint(uint64(massege.ID), 10),
 					"ChannelID":  strconv.FormatUint(uint64(massege.ChannelID), 10),
 					"UserFromID": strconv.FormatUint(uint64(massege.UserID), 10),
@@ -138,7 +146,19 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				fmt.Println(err)
 			}
-			ret := map[string]interface{}{"method": "GetChat", "data": masseges}
+			//fmt.Println(id)
+			chat_ := data.GetChatByID(id)
+			//fmt.Println(chat_)
+			var onl bool
+			if chat_.IsPrivate {
+				users, _ := data.GetUsersInChat(chat_.ID)
+				for _, user := range users {
+					if user.ID != userID {
+						_, onl = ws.Connections[user.ID]
+					}
+				}
+			}
+			ret := map[string]interface{}{"method": "GetChat", "data": map[string]interface{}{"messages": masseges, "Online": onl, "LastReadedId": lastreadedid}}
 			if conn, ok := ws.Connections[userID]; ok {
 				err := conn.WriteJSON(ret)
 				if err != nil {

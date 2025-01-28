@@ -10,7 +10,7 @@ import (
 )
 
 func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
-	userid, err := extractJWT(r)
+	userid, err := extractJWT(w, r)
 	if err != nil {
 		fmt.Println(err)
 		w.WriteHeader(http.StatusUnauthorized)
