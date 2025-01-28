@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"os"
+	"sort"
 	"time"
 )
 
@@ -58,6 +59,9 @@ func GetChanMassages(chanid uint) ([]Message, error) {
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(message, func(i, j int) bool {
+		return message[i].Timestamp.Before(message[j].Timestamp)
+	})
 	return message, nil
 }
 func AddMessage(froid uint, chaid uint, message string) {

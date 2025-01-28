@@ -125,7 +125,7 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			chat := msg.(data.GetChat)
 			id := chat.ChatId
 			var lastreadedid uint
-			allMasseges, err := data.GetChanMassages(uint(id))
+			allMasseges, err := data.GetChanMassages(id)
 			masseges := make([]map[string]interface{}, 0, len(allMasseges))
 			lst := false
 			for _, massege := range allMasseges {
