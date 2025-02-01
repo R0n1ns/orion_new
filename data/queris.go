@@ -37,6 +37,55 @@ func GetUserByID(userid uint) User {
 	DB.Where("id = ?", userid).Find(&user).Order("created_at desc")
 	return user
 }
+
+// GetChatIDForUsers ищет личный чат между двумя пользователями по их ID.
+// Если такой чат найден, возвращается его ID, иначе – -1.
+func GetChatIDForUsers(user1ID, user2ID uint) int {
+	// Если запрашивается чат самого с собой:
+	if user1ID == user2ID {
+		var channelIDs []int
+		err := DB.
+			Table("channels").
+			Joins("JOIN user_channels ON user_channels.channel_id = channels.id").
+			Group("channels.id").
+			Having("COUNT(user_channels.user_id) = ? AND SUM(CASE WHEN user_channels.user_id = ? THEN 1 ELSE 0 END) = ?", 1, user1ID, 1).
+			Pluck("channels.id", &channelIDs).Error
+
+		if err != nil {
+			fmt.Println(err)
+			return -1
+		}
+
+		if len(channelIDs) == 0 {
+			// Чат самого с собой не найден
+			return -1
+		}
+		// Если найдено несколько, возвращаем первый найденный
+		return channelIDs[0]
+	}
+
+	// Обработка обычного личного чата между двумя разными пользователями:
+	var channelIDs []int
+	err := DB.
+		Table("channels").
+		Joins("JOIN user_channels ON user_channels.channel_id = channels.id").
+		Group("channels.id").
+		Having("COUNT(user_channels.user_id) = ? AND SUM(CASE WHEN user_channels.user_id IN (?, ?) THEN 1 ELSE 0 END) = ?", 2, user1ID, user2ID, 2).
+		Pluck("channels.id", &channelIDs).Error
+
+	if err != nil {
+		fmt.Println(err)
+		return -1
+	}
+
+	if len(channelIDs) == 0 {
+		// Чат не найден
+		return -1
+	}
+	// Если найдено несколько совпадений, возвращаем первый найденный
+	return channelIDs[0]
+}
+
 func ReadMessages(chatid float64, userid string) {
 	DB.Model(&Message{}).Where("user_id != ? and channel_id = ? and readed = false", userid, chatid).Update("readed", true)
 }
@@ -118,6 +167,12 @@ func CreateChat(userID1, userID2 uint, channelName string) (*Channel, error) {
 	}
 
 	return &chat, nil
+}
+func SearchByUsername(username string) []User {
+	var user []User
+	query := username + "%"
+	DB.Where("user_name LIKE ?", query).Find(&user)
+	return user
 }
 
 func GetUsersInChat(chatid uint) ([]User, error) {

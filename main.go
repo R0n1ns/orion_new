@@ -13,7 +13,6 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/api/login", handlers.LoginHandler).Methods("POST")
 	r.HandleFunc("/ws", handlers.WSmanager.HandleWebSocket)
-
 	// Wrap the router with CORS middleware
 	handler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"}, // Разрешите нужные источники

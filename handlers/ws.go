@@ -70,13 +70,13 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			data.AddMessage(userID, msg.ChatId, msg.Message)
 			ret := map[string]interface{}{"method": "RcvdMessage", "data": mes}
-			fmt.Println(ws.Connections)
-			fmt.Println(msg.ChatId)
+			//fmt.Println(ws.Connections)
+			//fmt.Println(msg.ChatId)
 			chatusers, er := data.GetUsersInChat(msg.ChatId)
 			if er != nil {
 				log.Println("Error getting users from database:", er)
 			}
-			fmt.Println(chatusers)
+			//fmt.Println(chatusers)
 			for _, user := range chatusers {
 				if user.ID == userID {
 					continue
@@ -94,7 +94,32 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 					log.Printf("No active WebSocket connection for User %d\n", msg.ChatId)
 				}
 			}
-
+		case "ReadedMessages":
+			chatid := uint(msg.(float64))
+			chatusers, er := data.GetUsersInChat(chatid)
+			if er != nil {
+				log.Println("Error getting users from database:", er)
+			}
+			ret := map[string]interface{}{"method": "ReadedMessages", "data": map[string]interface{}{"chatId": chatid}}
+			//fmt.Println(chatusers)
+			for _, user := range chatusers {
+				if user.ID == userID {
+					continue
+				}
+				//fmt.Println("user", user)
+				if conn, ok := ws.Connections[user.ID]; ok {
+					err := conn.WriteJSON(ret)
+					if err != nil {
+						log.Printf("Error sending message to User %d: %v\n", userID, err)
+						conn.Close()
+						delete(ws.Connections, userID)
+					} else {
+						log.Printf("Message sent from User %d to User %d: %s\n", userID, userID, ret)
+					}
+				} else {
+					log.Printf("No active WebSocket connection for User %d\n", userID)
+				}
+			}
 		case "GetChats":
 			chats := msg.([]data.Channel)
 			chatsJSON := make([]map[string]interface{}, len(chats))
@@ -109,6 +134,31 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 
 			ret := map[string]interface{}{"method": "GetChats", "data": chatsJSON}
+			if conn, ok := ws.Connections[userID]; ok {
+				err := conn.WriteJSON(ret)
+				if err != nil {
+					log.Printf("Error sending chats %d: %v\n", userID, err)
+					conn.Close()
+					delete(ws.Connections, userID)
+				} else {
+					log.Printf("Chats sendet to user %d \n", userID)
+				}
+			} else {
+				log.Printf("No active WebSocket connection for User %d\n", userID)
+			}
+		case "GetUsers":
+			users := msg.([]data.User)
+			usersJSON := make([]map[string]interface{}, len(users))
+			for i, user := range users {
+				usersJSON[i] = map[string]interface{}{
+					"id":       user.ID,
+					"username": user.UserName,
+					"chat_id":  data.GetChatIDForUsers(user.ID, userID),
+				}
+			}
+			fmt.Println(usersJSON)
+
+			ret := map[string]interface{}{"method": "UsersAnsw", "data": usersJSON}
 			if conn, ok := ws.Connections[userID]; ok {
 				err := conn.WriteJSON(ret)
 				if err != nil {

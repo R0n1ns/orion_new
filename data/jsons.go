@@ -40,9 +40,14 @@ type GetChat struct {
 	ChatId uint `json:"chatId"`
 }
 
-// ReadMessags прочитать сообщения от пользователя
+// ReadMessages прочитать сообщения от пользователя
 /*
-{method:"ReadMessags",query:{chatId:,userId:}}
+{method:"ReadMessages",query:{chatId:,userId:}}
+*/
+
+// GetUsers прочитать сообщения от пользователя
+/*
+{method:"GetUsers",query:{username:}}
 */
 
 // ----- от сервера -----
@@ -52,9 +57,19 @@ type GetChat struct {
 {method:"RetMessage",data:{fromChatID:,message:"",timestamp:}}
 */
 
+//прочитан чат
+/*
+{method:"ReadedMessages",data:{chatId:}}
+*/
+
 //отправка чатов
 /*
 	{method:"GetChats",data:{[{"id":,"name":},]}}}
+*/
+
+//отправка юзеров
+/*
+	{method:"UsersAnsw",data:{[{"id":,"username":,"chat_id":},]}}}
 */
 
 //отправка конкретного чата
@@ -80,13 +95,17 @@ func HandleRequest(data []byte, userID uint) (string, interface{}, error) {
 	case "ReadMessages":
 		dat := dt.Query.(map[string]interface{})
 		ReadMessages(dat["chatId"].(float64), dat["userId"].(string))
-		return "", nil, nil
+		return "ReadedMessages", dat["chatId"].(float64), nil
 	case "GetChats":
 		chats, err := GetChannels(userID)
 		if err != nil {
 			return "", nil, err
 		}
 		return "GetChats", chats, nil
+	case "GetUsers":
+		dat := dt.Query.(map[string]interface{})
+		users := SearchByUsername(dat["username"].(string))
+		return "GetUsers", users, nil
 	case "GetChat":
 		msg := GetChat{}
 		dat := dt.Query.(map[string]interface{})
