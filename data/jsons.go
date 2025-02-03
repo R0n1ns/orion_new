@@ -3,6 +3,7 @@ package data
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 )
 
 // общий тип запроса
@@ -48,6 +49,11 @@ type GetChat struct {
 // GetUsers прочитать сообщения от пользователя
 /*
 {method:"GetUsers",query:{username:}}
+*/
+
+// CreateChat создать чат
+/*
+{method:"CreateChat",query:{user1:,user2:}}
 */
 
 // ----- от сервера -----
@@ -106,6 +112,15 @@ func HandleRequest(data []byte, userID uint) (string, interface{}, error) {
 		dat := dt.Query.(map[string]interface{})
 		users := SearchByUsername(dat["username"].(string))
 		return "GetUsers", users, nil
+	case "CreateChat":
+		dat := dt.Query.(map[string]interface{})
+		//fmt.Println(dat)
+		chatname := dat["user1"].(string) + "--" + fmt.Sprint(dat["user2"].(float64))
+		us1, _ := strconv.ParseUint(dat["user1"].(string), 10, 32)
+		us2, _ := dat["user2"].(float64)
+		chat, _ := CreateChat(uint(us1), uint(us2), chatname)
+		//fmt.Println(chat)
+		return "ChatCreated", *chat, nil
 	case "GetChat":
 		msg := GetChat{}
 		dat := dt.Query.(map[string]interface{})

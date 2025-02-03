@@ -146,6 +146,28 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			} else {
 				log.Printf("No active WebSocket connection for User %d\n", userID)
 			}
+		case "ChatCreated":
+			chat := msg.(data.Channel)
+			chatsJSON := map[string]interface{}{
+				"id":      chat.ID,
+				"name":    chat.Name,
+				"readed":  data.IfReadedChat(chat.ID, userID),
+				"Private": chat.IsPrivate,
+			}
+
+			ret := map[string]interface{}{"method": "ChatCreated", "data": chatsJSON}
+			if conn, ok := ws.Connections[userID]; ok {
+				err := conn.WriteJSON(ret)
+				if err != nil {
+					log.Printf("Error sending chats %d: %v\n", userID, err)
+					conn.Close()
+					delete(ws.Connections, userID)
+				} else {
+					log.Printf("Chats sendet to user %d \n", userID)
+				}
+			} else {
+				log.Printf("No active WebSocket connection for User %d\n", userID)
+			}
 		case "GetUsers":
 			users := msg.([]data.User)
 			usersJSON := make([]map[string]interface{}, len(users))
@@ -222,6 +244,7 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 				log.Printf("No active WebSocket connection for User %d\n", userID)
 			}
 		}
+
 		// Forward message to the intended recipient
 	}
 
