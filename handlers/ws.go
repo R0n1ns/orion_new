@@ -124,16 +124,50 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			chats := msg.([]data.Channel)
 			chatsJSON := make([]map[string]interface{}, len(chats))
 			for i, chat := range chats {
-
-				chatsJSON[i] = map[string]interface{}{
-					"id":      chat.ID,
-					"name":    chat.Name,
-					"readed":  data.IfReadedChat(chat.ID, userID),
-					"Private": chat.IsPrivate,
+				chatusers, _ := data.GetUsersInChat(chat.ID)
+				if len(chatusers) == 1 {
+					chatsJSON[i] = map[string]interface{}{
+						"id":      chat.ID,
+						"name":    chatusers[0].UserName,
+						"readed":  data.IfReadedChat(chat.ID, userID),
+						"Private": chat.IsPrivate,
+					}
+				} else {
+					for _, user := range chatusers {
+						if user.ID == userID {
+							continue
+						}
+						chatsJSON[i] = map[string]interface{}{
+							"id":      chat.ID,
+							"name":    user.UserName,
+							"readed":  data.IfReadedChat(chat.ID, userID),
+							"Private": chat.IsPrivate,
+						}
+					}
 				}
-			}
 
-			ret := map[string]interface{}{"method": "GetChats", "data": chatsJSON}
+			}
+			//fmt.Println(chatsJSON)
+			userC := data.GetUserByID(userID)
+
+			//,
+			//userC := data.GetUserByID(userID)
+			//userJson := map[string]interface{}{
+			//	"info":
+
+			//}
+			ret := map[string]interface{}{"method": "GetChats", "data": map[string]interface{}{
+				"chats": chatsJSON,
+				"info": map[string]interface{}{
+					"id":             userC.ID,
+					"Mail":           userC.Mail,
+					"UserName":       userC.UserName,
+					"IsBlocked":      userC.IsBlocked,
+					"LastOnline":     userC.LastOnline,
+					"ProfilePicture": "http://example.com/profile.jpg",
+					"Biom":           userC.Bio,
+				},
+			}}
 			if conn, ok := ws.Connections[userID]; ok {
 				err := conn.WriteJSON(ret)
 				if err != nil {
@@ -148,12 +182,25 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 		case "ChatCreated":
 			chat := msg.(data.Channel)
-			chatsJSON := map[string]interface{}{
-				"id":      chat.ID,
-				"name":    chat.Name,
-				"readed":  data.IfReadedChat(chat.ID, userID),
-				"Private": chat.IsPrivate,
+			chatusers := chat.Users
+			chatsJSON := map[string]interface{}{}
+			for _, user := range chatusers {
+				if user.ID == userID {
+					continue
+				}
+				chatsJSON = map[string]interface{}{
+					"id":      chat.ID,
+					"name":    user.UserName,
+					"readed":  data.IfReadedChat(chat.ID, userID),
+					"Private": chat.IsPrivate,
+				}
 			}
+			//chatsJSON := map[string]interface{}{
+			//	"id":      chat.ID,
+			//	"name":    chat.Name,
+			//	"readed":  data.IfReadedChat(chat.ID, userID),
+			//	"Private": chat.IsPrivate,
+			//}
 
 			ret := map[string]interface{}{"method": "ChatCreated", "data": chatsJSON}
 			if conn, ok := ws.Connections[userID]; ok {
@@ -222,15 +269,32 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			chat_ := data.GetChatByID(id)
 			//fmt.Println(chat_)
 			var onl bool
+			var userC data.User
 			if chat_.IsPrivate {
 				users, _ := data.GetUsersInChat(chat_.ID)
 				for _, user := range users {
 					if user.ID != userID {
+						userC = user
 						_, onl = ws.Connections[user.ID]
 					}
 				}
 			}
-			ret := map[string]interface{}{"method": "GetChat", "data": map[string]interface{}{"messages": masseges, "Online": onl, "LastReadedId": lastreadedid}}
+			ret := map[string]interface{}{
+				"method": "GetChat",
+				"data": map[string]interface{}{
+					"messages":     masseges,
+					"Online":       onl,
+					"LastReadedId": lastreadedid,
+					"info": map[string]interface{}{
+						"Mail":           userC.Mail,
+						"UserName":       userC.UserName,
+						"IsBlocked":      userC.IsBlocked,
+						"LastOnline":     userC.LastOnline,
+						"ProfilePicture": "http://example.com/profile.jpg",
+						"Biom":           userC.Bio,
+					},
+				},
+			}
 			if conn, ok := ws.Connections[userID]; ok {
 				err := conn.WriteJSON(ret)
 				if err != nil {

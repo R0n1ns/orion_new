@@ -119,6 +119,7 @@ func HandleRequest(data []byte, userID uint) (string, interface{}, error) {
 		us1, _ := strconv.ParseUint(dat["user1"].(string), 10, 32)
 		us2, _ := dat["user2"].(float64)
 		chat, _ := CreateChat(uint(us1), uint(us2), chatname)
+
 		//fmt.Println(chat)
 		return "ChatCreated", *chat, nil
 	case "GetChat":
