@@ -1,10 +1,12 @@
 package data
 
 import (
+	"encoding/base64"
 	"fmt"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -116,14 +118,6 @@ func GetChanMassages(chanid uint) ([]Message, error) {
 	return message, nil
 }
 func AddMessage(froid uint, chaid uint, message string) {
-	//var user User
-	//if err := DB.First(&user, froid).Error; err != nil {
-	//	fmt.Printf("user not found: %w", err)
-	//}
-	//var chanel Channel
-	//if err := DB.First(&chanel, chaid).Error; err != nil {
-	//	fmt.Printf("channen not found: %w", err)
-	//}
 	mess := Message{
 		ChannelID: chaid,
 		UserID:    froid,
@@ -131,6 +125,13 @@ func AddMessage(froid uint, chaid uint, message string) {
 		Timestamp: time.Now(),
 	}
 	err := DB.Create(&mess).Error
+	if err != nil {
+		log.Printf("Some error occured. Err: %s", err)
+	}
+}
+func AddHexPhoto(userid uint, hex string) {
+	err := DB.Model(&User{}).Where("id = ?", userid).Update("profile_picture", hex)
+
 	if err != nil {
 		log.Printf("Some error occured. Err: %s", err)
 	}
@@ -197,4 +198,15 @@ func IfReadedChat(chatid uint, userID uint) bool {
 		return false // есть непрочитанные сообщения
 	}
 	return true // нет непрочитанных сообщений
+}
+func GetPhoto(hash string) string {
+	file, err := ioutil.ReadFile(fmt.Sprint("images/" + hash + ".jpg"))
+	if err != nil {
+		//fmt.Println("Ошибка при открытии файла:", err)
+		return "none"
+	}
+	encodedImage := base64.StdEncoding.EncodeToString(file)
+	// Формируем data URL для изображения
+	profilePictureURL := "data:image/jpeg;base64," + encodedImage
+	return profilePictureURL
 }

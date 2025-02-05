@@ -1,9 +1,16 @@
 package data
 
 import (
+	"crypto/md5"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
+	"strings"
 )
 
 // общий тип запроса
@@ -108,6 +115,32 @@ func HandleRequest(data []byte, userID uint) (string, interface{}, error) {
 			return "", nil, err
 		}
 		return "GetChats", chats, nil
+	case "UpdateProfilePicture":
+		data := dt.Query.(map[string]interface{})
+		parts := strings.SplitN(data["imageData"].(string), ",", 2)
+		if len(parts) != 2 {
+			fmt.Errorf("некорректные данные изображения")
+		}
+		// Декодируем base64-часть
+		imageBytes, err := base64.StdEncoding.DecodeString(parts[1])
+		if err != nil {
+			fmt.Errorf("ошибка декодирования base64: %v", err)
+		}
+		// imageBytes содержит бинарные данные изображения
+		hash := md5.Sum((imageBytes))
+		imageHex := hex.EncodeToString(hash[:])
+
+		AddHexPhoto(userID, imageHex)
+		if _, err := os.Stat("images/" + imageHex + ".jpg"); errors.Is(err, os.ErrNotExist) {
+			if err := ioutil.WriteFile(fmt.Sprint("images/"+imageHex+".jpg"), imageBytes, 0644); err != nil {
+				fmt.Println("Ошибка при сохранении файла:", err)
+			}
+		}
+		// Если требуется, "разжать" (декодировать) изображение можно просто повторно закодировав его в Base64.
+		encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
+		// Формируем data URL для изображения
+		profilePictureURL := "data:image/jpeg;base64," + encodedImage
+		return "UpdateProfilePicture", profilePictureURL, nil
 	case "GetUsers":
 		dat := dt.Query.(map[string]interface{})
 		users := SearchByUsername(dat["username"].(string))

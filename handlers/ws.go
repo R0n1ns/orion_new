@@ -164,7 +164,7 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 					"UserName":       userC.UserName,
 					"IsBlocked":      userC.IsBlocked,
 					"LastOnline":     userC.LastOnline,
-					"ProfilePicture": "http://example.com/profile.jpg",
+					"ProfilePicture": data.GetPhoto(userC.ProfilePicture),
 					"Biom":           userC.Bio,
 				},
 			}}
@@ -176,6 +176,26 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 					delete(ws.Connections, userID)
 				} else {
 					log.Printf("Chats sendet to user %d \n", userID)
+				}
+			} else {
+				log.Printf("No active WebSocket connectio"+
+					"n for User %d\n", userID)
+			}
+		case "UpdateProfilePicture":
+			data := msg.(string)
+
+			ret := map[string]interface{}{"method": "UpdateProfilePicture", "data": map[string]interface{}{
+				"ProfilePicture": data,
+			}}
+
+			if conn, ok := ws.Connections[userID]; ok {
+				err := conn.WriteJSON(ret)
+				if err != nil {
+					log.Printf("Error sending chats %d: %v\n", userID, err)
+					conn.Close()
+					delete(ws.Connections, userID)
+				} else {
+					log.Printf("UpdateProfilePicture sendet to user %d \n", userID)
 				}
 			} else {
 				log.Printf("No active WebSocket connection for User %d\n", userID)
@@ -290,7 +310,7 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 						"UserName":       userC.UserName,
 						"IsBlocked":      userC.IsBlocked,
 						"LastOnline":     userC.LastOnline,
-						"ProfilePicture": "http://example.com/profile.jpg",
+						"ProfilePicture": data.GetPhoto(userC.ProfilePicture),
 						"Biom":           userC.Bio,
 					},
 				},
