@@ -7,7 +7,8 @@ import (
 	"os"
 )
 
-// JWT Claims structure
+// Claims представляет структуру JWT-токена, содержащую ID пользователя и стандартные поля.
+// При необходимости можно расширить эту структуру дополнительными данными.
 type Claims struct {
 	UserID uint `json:"user_id"`
 	jwt.StandardClaims
