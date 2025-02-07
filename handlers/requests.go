@@ -1,15 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	data2 "orion/data"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -128,6 +127,7 @@ func HandleRequest(data []byte, userID uint) (string, interface{}, error) {
 		if len(parts) != 2 {
 			return "", nil, errors.New("invalid image data format")
 		}
+
 		// Декодирование base64-части изображения.
 		imageBytes, err := base64.StdEncoding.DecodeString(parts[1])
 		if err != nil {
@@ -138,12 +138,14 @@ func HandleRequest(data []byte, userID uint) (string, interface{}, error) {
 		imageHex := hex.EncodeToString(hash[:])
 		// Обновление ссылки на фотографию в базе данных.
 		data2.AddHexPhoto(userID, imageHex)
-		// Если файла с таким именем нет, сохраняем изображение на диск.
-		if _, err := os.Stat("images/" + imageHex + ".jpg"); errors.Is(err, os.ErrNotExist) {
-			if err := ioutil.WriteFile("images/"+imageHex+".jpg", imageBytes, 0644); err != nil {
-				return "", nil, fmt.Errorf("failed to save image file: %w", err)
-			}
+
+		// Загрузка изображения в MinIO (заменяет сохранение на диск).
+		objectName := imageHex + ".jpg"
+		err = data2.UploadImage(context.Background(), objectName, imageBytes, "image/jpeg")
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to upload image to minio: %w", err)
 		}
+
 		// Формирование data URL для изображения.
 		encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
 		profilePictureURL := "data:image/jpeg;base64," + encodedImage

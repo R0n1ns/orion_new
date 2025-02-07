@@ -1,12 +1,10 @@
 package data
 
 import (
-	"encoding/base64"
 	"fmt"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -30,12 +28,6 @@ func init() {
 	if err != nil {
 		log.Fatalf("Some error occured. Err: %s", err)
 	}
-	// Примеры создания пользователей и чатов (закомментировано):
-	//DB.Create(&User{Mail: "test2@dsfds.txt", Password: "test2", UserName: "test2", LastOnline: time.Now()})
-	//DB.Create(&User{Mail: "test3@dsfds.txt", Password: "test3", UserName: "test3", LastOnline: time.Now()})
-	//CreateChat(1, 2, "chat2")
-	//CreateChat(1, 3, "chat3")
-	//CreateChat(1, 1)
 }
 
 // GetUserByID возвращает пользователя по его ID.
@@ -309,24 +301,4 @@ func IfReadedChat(chatid uint, userID uint) bool {
 		return false // есть непрочитанные сообщения
 	}
 	return true // нет непрочитанных сообщений
-}
-
-// GetPhoto возвращает фотографию в виде data URL для изображения, если файл существует.
-// Файл ищется по пути "images/{hash}.jpg". Если файл не найден, возвращается строка "none".
-//
-// Параметры:
-//   - hash: строка-хэш, которая используется для формирования имени файла.
-//
-// Возвращаемое значение:
-//   - string: data URL изображения или "none", если изображение не найдено.
-func GetPhoto(hash string) string {
-	file, err := ioutil.ReadFile(fmt.Sprint("images/" + hash + ".jpg"))
-	if err != nil {
-		//fmt.Println("Ошибка при открытии файла:", err)
-		return "none"
-	}
-	encodedImage := base64.StdEncoding.EncodeToString(file)
-	// Формируем data URL для изображения
-	profilePictureURL := "data:image/jpeg;base64," + encodedImage
-	return profilePictureURL
 }
