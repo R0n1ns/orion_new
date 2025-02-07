@@ -3,11 +3,18 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"log"
 	"net/http"
 	"orion/handlers"
 )
+
+func init() {
+	// Регистрируем метрику в реестре Prometheus
+	prometheus.MustRegister(handlers.MessageProcessingTime)
+}
 
 /*
 Package main является точкой входа в приложение.
@@ -31,14 +38,15 @@ func main() {
 
 	// Регистрация WebSocket-эндпоинта для установления соединения с клиентами.
 	r.HandleFunc("/ws", handlers.WSmanager.HandleWebSocket)
-
+	// Экспонируем метрики по /metrics
+	r.Handle("/metrics", promhttp.Handler())
 	// Настройка CORS middleware:
 	// - AllowedOrigins: список разрешённых источников (например, для разработки с React на http://localhost:3000).
 	// - AllowedMethods: разрешённые HTTP-методы.
 	// - AllowedHeaders: разрешённые заголовки.
 	// - AllowCredentials: разрешает передачу учетных данных (cookies, заголовки авторизации и т.д.).
 	handler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"}, // Разрешённые источники запросов
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:9090"}, // Разрешённые источники запросов
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -49,5 +57,5 @@ func main() {
 
 	// Запуск HTTP-сервера на порту 8080 с применением настроенного middleware.
 	// Если сервер не сможет запуститься, будет выведена ошибка с помощью log.Fatal.
-	log.Fatal(http.ListenAndServe(":8080", handler))
+	log.Fatal(http.ListenAndServe("0.0.0.0:8080", handler))
 }

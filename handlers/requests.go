@@ -11,6 +11,7 @@ import (
 	data2 "orion/data"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Querys представляет общий формат запроса от клиента.
@@ -74,6 +75,14 @@ func HandleRequest(data []byte, userID uint) (string, interface{}, error) {
 		return "", nil, fmt.Errorf("failed to unmarshal request: %w", err)
 	}
 	fmt.Println("Received request:", dt)
+
+	//отправк метрики
+	startTime := time.Now()
+	defer func(method string, start time.Time) {
+		elapsed := time.Since(start)
+		// Отправляем время обработки в секундах с меткой, указывающей тип сообщения.
+		MessageProcessingTime.WithLabelValues(method).Observe(elapsed.Seconds())
+	}(dt.Method, startTime)
 
 	switch dt.Method {
 	case "RcvdMessage":
@@ -206,4 +215,5 @@ func HandleRequest(data []byte, userID uint) (string, interface{}, error) {
 	default:
 		return "", nil, fmt.Errorf("unknown method: %s", dt.Method)
 	}
+
 }
