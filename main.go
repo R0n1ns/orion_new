@@ -14,6 +14,11 @@ import (
 func init() {
 	// Регистрируем метрику в реестре Prometheus
 	prometheus.MustRegister(handlers.MessageProcessingTime)
+	prometheus.MustRegister(handlers.RequestCounter)
+	prometheus.MustRegister(handlers.RequestDuration)
+	prometheus.MustRegister(handlers.ErrorCounter)
+	prometheus.MustRegister(handlers.AppUptime)
+	prometheus.MustRegister(handlers.AppInfo)
 }
 
 /*
@@ -28,6 +33,18 @@ Package main является точкой входа в приложение.
   - Запуск HTTP-сервера на порту 8080.
 */
 
+// chatHandler отправляет HTML-страницу chat.html
+func chatHandler(w http.ResponseWriter, r *http.Request) {
+	// Путь к файлу chat.html, при необходимости измените его
+	http.ServeFile(w, r, "front/chat.html")
+}
+
+// loginhandler отправляет HTML-страницу chat.html
+func loginhandler(w http.ResponseWriter, r *http.Request) {
+	// Путь к файлу chat.html, при необходимости измените его
+	http.ServeFile(w, r, "front/login.html")
+}
+
 // main инициализирует маршруты, применяет CORS middleware и запускает HTTP-сервер.
 func main() {
 	// Создание нового маршрутизатора с использованием Gorilla Mux.
@@ -35,6 +52,8 @@ func main() {
 
 	// Регистрация HTTP-эндпоинта для логина пользователя. Обрабатывается функцией LoginHandler.
 	r.HandleFunc("/api/login", handlers.LoginHandler).Methods("POST")
+	r.HandleFunc("/chat", chatHandler).Methods("GET")
+	r.HandleFunc("/login", loginhandler).Methods("GET")
 
 	// Регистрация WebSocket-эндпоинта для установления соединения с клиентами.
 	r.HandleFunc("/ws", handlers.WSmanager.HandleWebSocket)
@@ -46,7 +65,7 @@ func main() {
 	// - AllowedHeaders: разрешённые заголовки.
 	// - AllowCredentials: разрешает передачу учетных данных (cookies, заголовки авторизации и т.д.).
 	handler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:9090"}, // Разрешённые источники запросов
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:9090", "http://localhost:8080"}, // Разрешённые источники запросов
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,

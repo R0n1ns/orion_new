@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat App</title>
+    <style>
+        /* Основные стили */
+        body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .app-container {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .chat-list-container {
+            width: 30%;
+            background-color: #f7f7f7;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #ddd;
+            height: 100%;
+        }
+
+        .search-bar {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-icon {
+            margin-right: 5px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        .search-results {
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .search-result-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+
+        .search-result-item:hover {
+            background-color: #eef;
+        }
+
+        .chat-list {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .chat-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #ddd;
+            position: relative; /* Для позиционирования кружка внутри элемента */
+        }
+
+        .chat-item:hover {
+            background-color: #eef;
+        }
+
+        .chat-item.active {
+            background-color: #ddeeff;
+        }
+
+        .chat-name {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .chat-preview {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        /* Синий кружок для непрочитанных чатов */
+        .blue-circle {
+            width: 10px;
+            height: 10px;
+            background-color: blue;
+            border-radius: 50%;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: none; /* Скрыть кружок по умолчанию */
+        }
+
+        /* Показываем синий кружок, если чат не прочитан */
+        .chat-item.unread .blue-circle {
+            display: block;
+        }
+
+        .chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #0088cc;
+            padding: 10px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .header-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .chat-title {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .chat-subtitle {
+            margin: 0;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .chat-body {
+            flex-grow: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #f5f5f5;
+        }
+
+        .chat-date {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 0.9rem;
+            color: #999;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            max-width: 70%;
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            position: relative;
+            word-wrap: break-word;
+            word-break: break-word;
+            display: block;
+            overflow: hidden;
+            white-space: normal;
+        }
+
+        .message.received {
+            background-color: #fff;
+            align-self: flex-start;
+        }
+
+        .message.sent {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+        }
+
+        .message-meta {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        .chat-input {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #fff;
+            border-top: 1px solid #ddd;
+        }
+
+        .input-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+
+        .message-input::placeholder {
+            color: #999;
+        }
+
+        .status-icon {
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
+
+        .status-icon.read {
+            color: blue;
+        }
+
+        .status-icon.unread {
+            color: gray;
+        }
+
+        .unread-bubble {
+            width: 10px;
+            height: 10px;
+            background-color: blue;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        /* Модальные окна */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .popup-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Фиксированная панель аккаунта */
+        .account-strip {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            z-index: 1100;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- Левая панель: список чатов и поиск пользователей -->
+    <div class="chat-list-container">
+        <div class="search-bar">
+            <span class="search-icon">&#128269;</span>
+            <input type="text" placeholder="Search users..." class="search-input" id="search-input">
+        </div>
+        <div class="search-results" id="search-results"></div>
+        <div class="chat-list" id="chat-list"></div>
+    </div>
+
+    <!-- Правая панель: окно чата с сообщениями -->
+    <div class="chat-container">
+        <div class="header" id="chat-header">
+            <div class="header-info">
+                <h2 class="chat-title" id="chat-title">Chat Title</h2>
+                <p class="chat-subtitle" id="chat-subtitle">Offline</p>
+            </div>
+        </div>
+        <div class="chat-body" id="chat-body">
+            <!-- Здесь будут отображаться сообщения -->
+        </div>
+        <div class="chat-input">
+            <input type="text" class="message-input" placeholder="Type a message..." id="message-input">
+            <button class="input-btn send-btn" id="send-btn">Send</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с информацией о чате -->
+<div class="popup-overlay" id="chat-info-modal">
+    <div class="popup-content">
+        <button class="close-btn" id="chat-info-close">&times;</button>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="" alt="Chat" id="chat-info-img" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover;">
+        </div>
+        <div id="chat-info-fields"></div>
+    </div>
+</div>
+
+<!-- Модальное окно с информацией об аккаунте -->
+<div class="popup-overlay" id="account-info-modal">
+    <div class="popup-content">
+        <button class="close-btn" id="account-info-close">&times;</button>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="" alt="Account" id="account-info-img" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover;">
+        </div>
+        <div id="account-info-fields"></div>
+        <div style="margin-top: 20px;">
+            <button id="change-photo-btn" style="padding: 10px 20px; border-radius: 5px; border: none; background-color: #007bff; color: #fff; cursor: pointer;">
+                Изменить фото
+            </button>
+            <input type="file" accept="image/*" id="file-input" style="display: none;">
+        </div>
+    </div>
+</div>
+
+<!-- Фиксированная панель аккаунта -->
+<div class="account-strip" id="account-strip">
+    <img src="" alt="Profile" id="account-strip-img" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+    <span id="account-strip-name" style="margin-left: 10px;">Аккаунт</span>
+</div>
+
+<script>
+    // Глобальные переменные
+    var chats = [];
+    var messages = [];
+    var unreadMessages = {}; // { chatId: count }
+    var isOnline = false;
+    var searchResults = [];
+    var chatInfo = {};
+    var accountInfo = {};
+    var activeChatId = null;
+    var ws = null;
+
+    // Получение ссылок на элементы DOM
+    var searchInput      = document.getElementById("search-input");
+    var searchResultsDiv = document.getElementById("search-results");
+    var chatListDiv      = document.getElementById("chat-list");
+    var chatTitle        = document.getElementById("chat-title");
+    var chatSubtitle     = document.getElementById("chat-subtitle");
+    var chatBody         = document.getElementById("chat-body");
+    var messageInput     = document.getElementById("message-input");
+    var sendBtn          = document.getElementById("send-btn");
+    var chatHeader       = document.getElementById("chat-header");
+    var chatInfoModal    = document.getElementById("chat-info-modal");
+    var chatInfoClose    = document.getElementById("chat-info-close");
+    var chatInfoImg      = document.getElementById("chat-info-img");
+    var chatInfoFields   = document.getElementById("chat-info-fields");
+    var accountInfoModal = document.getElementById("account-info-modal");
+    var accountInfoClose = document.getElementById("account-info-close");
+    var accountInfoImg   = document.getElementById("account-info-img");
+    var accountInfoFields= document.getElementById("account-info-fields");
+    var changePhotoBtn   = document.getElementById("change-photo-btn");
+    var fileInput        = document.getElementById("file-input");
+    var accountStrip     = document.getElementById("account-strip");
+    var accountStripImg  = document.getElementById("account-strip-img");
+    var accountStripName = document.getElementById("account-strip-name");
+
+    // Функция для декодирования JWT (упрощённая версия)
+    function jwtDecode(token) {
+        var parts = token.split('.');
+        if (parts.length !== 3) throw new Error("Invalid token");
+        var payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        var decodedPayload = atob(payload);
+        return JSON.parse(decodedPayload);
+    }
+
+    // Извлечение user_id из JWT, хранящегося в cookies
+    function getUserIdFromJWT() {
+        var tokenCookie = document.cookie.split("; ").find(function(row) {
+            return row.startsWith("jwt_token=");
+        });
+        if (tokenCookie) {
+            var jwt = tokenCookie.split("=")[1];
+            try {
+                var decoded = jwtDecode(jwt);
+                return decoded.user_id.toString();
+            } catch(e) {
+                console.error("Failed to decode JWT:", e);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    // Функция для сжатия изображения с использованием canvas
+    function compressImage(imageFile, callback) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var img = new Image();
+            img.onload = function() {
+                var MAX_WIDTH = 300;
+                var scaleSize = MAX_WIDTH / img.width;
+                var canvas = document.createElement('canvas');
+                canvas.width = MAX_WIDTH;
+                canvas.height = img.height * scaleSize;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                var compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                callback(compressedDataUrl);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(imageFile);
+    }
+
+    // Функция "разжатия" изображения (просто возвращает переданный URL)
+    function decompressImage(compressedDataUrl) {
+        return compressedDataUrl;
+    }
+
+    // Отправка сообщения на сервер через WebSocket
+    function sendToServer(message) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(message));
+        }
+    }
+
+    // Установка WebSocket-соединения
+    function setupWebSocket() {
+        var token = getUserIdFromJWT();
+        if (!token) {
+            window.location.href = "/login";
+            return;
+        }
+        ws = new WebSocket("ws://localhost:8080/ws");
+        ws.onopen = function() {
+            sendToServer({ method: "GetChats", query: { userId: token } });
+        };
+        ws.onmessage = function(event) {
+            var data = JSON.parse(event.data);
+            if (data.error === "Unauthorized" || data.status === 401) {
+                ws.close();
+                window.location.href = "/login";
+                return;
+            }
+            handleMessage(data);
+        };
+        ws.onerror = function(error) {
+            console.error("WebSocket error:", error);
+        };
+        ws.onclose = function() {
+            console.log("WebSocket disconnected");
+        };
+    }
+
+    // Обработка входящих сообщений от сервера
+    function handleMessage(data) {
+        switch (data.method) {
+            case "GetChats":
+                if (data.data.info) {
+                    var profilePic = data.data.info.ProfilePicture === "none"
+                        ? "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png"
+                        : decompressImage(data.data.info.ProfilePicture);
+                    accountInfo = Object.assign({}, data.data.info, { ProfilePicture: profilePic });
+                    updateAccountInfo();
+                }
+                if (data.data.chats) {
+                    chats = data.data.chats;
+                } else {
+                    chats = data.data;
+                }
+                updateChatList();
+                break;
+            case "GetChat":
+                messages = data.data.messages.map(function(msg) {
+                    return {
+                        UserFromID: msg.UserFromID,
+                        Message: msg.Message,
+                        timestamp: new Date(msg.Date).toLocaleString("ru-RU"),
+                        isRead: msg.Readed === "true"
+                    };
+                });
+                isOnline = data.data.Online;
+                if (data.data.info) {
+                    var profilePic = data.data.info.ProfilePicture === "none"
+                        ? "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png"
+                        : data.data.info.ProfilePicture;
+                    chatInfo = Object.assign({}, data.data.info, { ProfilePicture: profilePic });
+                }
+                updateChatHeader();
+                updateChatBody();
+                break;
+            case "RcvdMessage":
+                handleIncomingMessage(data.data);
+                break;
+            case "ReadedMessages":
+                markMessagesAsRead(data.data.chatId);
+                updateChatBody();
+                break;
+            case "UsersAnsw":
+                searchResults = data.data;
+                updateSearchResults();
+                break;
+            case "ChatCreated":
+                chats.push(data.data);
+                handleChatSelect(data.data.id);
+                updateChatList();
+                break;
+            case "UpdateProfilePicture":
+                if (data.data && data.data.ProfilePicture) {
+                    var profilePic = data.data.ProfilePicture === "none"
+                        ? "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png"
+                        : decompressImage(data.data.ProfilePicture);
+                    accountInfo.ProfilePicture = profilePic;
+                    updateAccountInfo();
+                }
+                break;
+            default:
+                console.warn("Unknown method:", data.method);
+        }
+    }
+
+    // Помечаем сообщения в чате как прочитанные
+    function markMessagesAsRead(chatId) {
+        messages = messages.map(function(msg) {
+            if (msg.UserFromID !== getUserIdFromJWT()) {
+                msg.isRead = true;
+            }
+            return msg;
+        });
+    }
+
+    // Обработка выбора чата пользователем
+    function handleChatSelect(chatId) {
+        if (!chatId) return;
+        activeChatId = chatId;
+        sendToServer({ method: "GetChat", query: { chatId: chatId, userId: getUserIdFromJWT() } });
+        sendToServer({ method: "ReadMessages", query: { chatId: chatId, userId: getUserIdFromJWT() } });
+        chats = chats.map(function(chat) {
+            if (chat.id === chatId) {
+                chat.readed = true;
+            }
+            return chat;
+        });
+        messages = messages.map(function(msg) {
+            if (msg.UserFromID !== getUserIdFromJWT()) {
+                msg.isRead = true;
+            }
+            return msg;
+        });
+        unreadMessages[chatId] = 0;
+        updateChatList();
+    }
+
+    // Обработка входящего сообщения
+    function handleIncomingMessage(data) {
+        var chatId = data.fromChatID;
+        if (chatId === activeChatId) {
+            messages.push({
+                UserFromID: data.UserFromID,
+                Message: data.message,
+                timestamp: new Date(data.timestamp).toLocaleString("ru-RU"),
+                isRead: data.Readed === "true"
+            });
+            updateChatBody();
+        } else {
+            unreadMessages[chatId] = (unreadMessages[chatId] || 0) + 1;
+            updateChatList();
+        }
+    }
+
+    // Обработка отправки нового сообщения
+    function handleSendMessage() {
+        var msg = messageInput.value.trim();
+        if (msg !== "" && activeChatId) {
+            var messageData = {
+                method: "RcvdMessage",
+                query: {
+                    chatId: activeChatId,
+                    message: msg,
+                    userId: getUserIdFromJWT()
+                }
+            };
+            sendToServer(messageData);
+            messages.push({
+                UserFromID: getUserIdFromJWT(),
+                Message: msg,
+                timestamp: new Date().toLocaleString("ru-RU"),
+                isRead: false
+            });
+            messageInput.value = "";
+            updateChatBody();
+        }
+    }
+
+    // Обработка выбора пользователя из результатов поиска
+    function handleUserSelect(user) {
+        if (user.chat_id !== -1) {
+            handleChatSelect(user.chat_id);
+        } else {
+            var currentUserId = getUserIdFromJWT();
+            sendToServer({ method: "CreateChat", query: { user1: currentUserId, user2: user.id } });
+        }
+        searchInput.value = "";
+        searchResults = [];
+        updateSearchResults();
+    }
+
+    // Обновление списка чатов
+    function updateChatList() {
+        chatListDiv.innerHTML = "";
+        chats.forEach(function(chat) {
+            var chatItem = document.createElement("div");
+            chatItem.className = "chat-item";
+            if (chat.readed === false) {
+                chatItem.classList.add("unread");
+            }
+            if (chat.id === activeChatId) {
+                chatItem.classList.add("active");
+            }
+            chatItem.addEventListener("click", function() {
+                handleChatSelect(chat.id);
+            });
+            var chatName = document.createElement("h3");
+            chatName.className = "chat-name";
+            chatName.textContent = chat.name;
+            chatItem.appendChild(chatName);
+            var blueCircle = document.createElement("div");
+            blueCircle.className = "blue-circle";
+            chatItem.appendChild(blueCircle);
+            chatListDiv.appendChild(chatItem);
+        });
+    }
+
+    // Обновление заголовка чата
+    function updateChatHeader() {
+        chatTitle.textContent = "";
+        chats.forEach(function(chat) {
+            if (chat.id === activeChatId) {
+                chatTitle.textContent = chat.name;
+            }
+        });
+        chatSubtitle.textContent = isOnline ? "Online" : "Offline";
+    }
+
+    // Обновление области сообщений
+    function updateChatBody() {
+        chatBody.innerHTML = "";
+        messages.forEach(function(message) {
+            var messageDiv = document.createElement("div");
+            messageDiv.className = "message";
+            if (message.UserFromID === getUserIdFromJWT()) {
+                messageDiv.classList.add("sent");
+            } else {
+                messageDiv.classList.add("received");
+            }
+            var msgText = document.createElement("p");
+            msgText.className = "message-text";
+            msgText.textContent = message.Message;
+            messageDiv.appendChild(msgText);
+            var msgMeta = document.createElement("span");
+            msgMeta.className = "message-meta";
+            msgMeta.textContent = message.timestamp;
+            if (message.UserFromID === getUserIdFromJWT()) {
+                var statusSpan = document.createElement("span");
+                statusSpan.className = "status-icon " + (message.isRead ? "read" : "unread");
+                statusSpan.textContent = message.isRead ? "✔✔" : "✔";
+                msgMeta.appendChild(statusSpan);
+            } else if (!message.isRead) {
+                var unreadBubble = document.createElement("span");
+                unreadBubble.className = "unread-bubble";
+                msgMeta.appendChild(unreadBubble);
+            }
+            messageDiv.appendChild(msgMeta);
+            chatBody.appendChild(messageDiv);
+        });
+        // Прокрутка вниз
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    // Обновление результатов поиска
+    function updateSearchResults() {
+        searchResultsDiv.innerHTML = "";
+        searchResults.forEach(function(user) {
+            var item = document.createElement("div");
+            item.className = "search-result-item";
+            item.textContent = user.username;
+            item.addEventListener("click", function() {
+                handleUserSelect(user);
+            });
+            searchResultsDiv.appendChild(item);
+        });
+    }
+
+    // Обновление информации об аккаунте (фиксированная панель)
+    function updateAccountInfo() {
+        accountStripImg.src = accountInfo.ProfilePicture || "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png";
+        accountStripName.textContent = accountInfo.UserName || "Аккаунт";
+    }
+
+    // Открытие модального окна с информацией о чате при клике на заголовок
+    chatHeader.addEventListener("click", function() {
+        chatInfoImg.src = (chatInfo.ProfilePicture && chatInfo.ProfilePicture !== "none")
+            ? chatInfo.ProfilePicture
+            : "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png";
+        chatInfoFields.innerHTML = "";
+        if (chatInfo.Mail && chatInfo.Mail !== "none") {
+            var p = document.createElement("p");
+            p.innerHTML = "<strong>Mail:</strong> " + chatInfo.Mail;
+            chatInfoFields.appendChild(p);
+        }
+        if (chatInfo.IsBlocked && chatInfo.IsBlocked !== "none") {
+            var p = document.createElement("p");
+            p.style.color = "lightcoral";
+            p.innerHTML = "<strong>" + chatInfo.UserName + "</strong> заблокирован";
+            chatInfoFields.appendChild(p);
+        } else if (chatInfo.UserName && chatInfo.UserName !== "none") {
+            var p = document.createElement("p");
+            p.innerHTML = "<strong>UserName:</strong> " + chatInfo.UserName;
+            chatInfoFields.appendChild(p);
+        }
+        if (chatInfo.LastOnline && chatInfo.LastOnline !== "none") {
+            var p = document.createElement("p");
+            p.innerHTML = "<strong>LastOnline:</strong> " + chatInfo.LastOnline;
+            chatInfoFields.appendChild(p);
+        }
+        if (chatInfo.Biom && chatInfo.Biom !== "none") {
+            var p = document.createElement("p");
+            p.innerHTML = "<strong>Biom:</strong> " + chatInfo.Biom;
+            chatInfoFields.appendChild(p);
+        }
+        chatInfoModal.style.display = "flex";
+    });
+
+    // Закрытие модальных окон
+    chatInfoClose.addEventListener("click", function(e) {
+        e.stopPropagation();
+        chatInfoModal.style.display = "none";
+    });
+    accountInfoClose.addEventListener("click", function(e) {
+        e.stopPropagation();
+        accountInfoModal.style.display = "none";
+    });
+
+    // Открытие модального окна с информацией об аккаунте при клике на фиксированную панель
+    accountStrip.addEventListener("click", function() {
+        accountInfoImg.src = (accountInfo.ProfilePicture && accountInfo.ProfilePicture !== "none")
+            ? accountInfo.ProfilePicture
+            : "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png";
+        accountInfoFields.innerHTML = "";
+        if (accountInfo.Mail && accountInfo.Mail !== "none") {
+            var p = document.createElement("p");
+            p.innerHTML = "<strong>Mail:</strong> " + accountInfo.Mail;
+            accountInfoFields.appendChild(p);
+        }
+        if (accountInfo.IsBlocked && accountInfo.IsBlocked !== "none") {
+            var p = document.createElement("p");
+            p.style.color = "lightcoral";
+            p.innerHTML = "<strong>" + accountInfo.UserName + "</strong> заблокирован";
+            accountInfoFields.appendChild(p);
+        } else if (accountInfo.UserName && accountInfo.UserName !== "none") {
+            var p = document.createElement("p");
+            p.innerHTML = "<strong>UserName:</strong> " + accountInfo.UserName;
+            accountInfoFields.appendChild(p);
+        }
+        if (accountInfo.LastOnline && accountInfo.LastOnline !== "none") {
+            var p = document.createElement("p");
+            p.innerHTML = "<strong>LastOnline:</strong> " + accountInfo.LastOnline;
+            accountInfoFields.appendChild(p);
+        }
+        if (accountInfo.Biom && accountInfo.Biom !== "none") {
+            var p = document.createElement("p");
+            p.innerHTML = "<strong>Biom:</strong> " + accountInfo.Biom;
+            accountInfoFields.appendChild(p);
+        }
+        accountInfoModal.style.display = "flex";
+    });
+
+    // Обработка изменения фото профиля
+    changePhotoBtn.addEventListener("click", function() {
+        fileInput.click();
+    });
+    fileInput.addEventListener("change", function(event) {
+        var file = event.target.files[0];
+        if (file) {
+            compressImage(file, function(compressedDataUrl) {
+                sendToServer({
+                    method: "UpdateProfilePicture",
+                    query: {
+                        userId: getUserIdFromJWT(),
+                        imageData: compressedDataUrl
+                    }
+                });
+            });
+        }
+    });
+
+    // Обработчик кнопки отправки сообщения
+    sendBtn.addEventListener("click", handleSendMessage);
+
+    // Дебаунс для поиска пользователей
+    var debounceTimer;
+    searchInput.addEventListener("keyup", function(e) {
+        var query = searchInput.value;
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            if (query.trim() !== "") {
+                sendToServer({ method: "GetUsers", query: { username: query } });
+            } else {
+                searchResults = [];
+                updateSearchResults();
+            }
+        }, 500);
+    });
+
+    // Инициализация при загрузке страницы
+    window.addEventListener("load", function() {
+        setupWebSocket();
+    });
+</script>
+</body>
+</html>

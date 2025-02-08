@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Авторизация</title>
+    <!-- Подключаем React и ReactDOM через CDN -->
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <!-- Babel для трансляции JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- js-cookie для работы с cookie -->
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.1/dist/js.cookie.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            padding: 20px;
+            max-width: 400px;
+            margin: 50px auto;
+        }
+        input {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+        }
+        button {
+            padding: 10px 20px;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+    function LoginPage() {
+        const [email, setEmail] = React.useState('');
+        const [password, setPassword] = React.useState('');
+        const [error, setError] = React.useState('');
+        const [loading, setLoading] = React.useState(false);
+
+        const handleSubmit = async (e) => {
+            e.preventDefault();
+            setError('');
+            setLoading(true);
+
+            try {
+                const response = await fetch('http://localhost:8080/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                if (response.headers.get('Content-Type') !== 'application/json') {
+                    throw new Error('Некорректный формат ответа от сервера.');
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    setError(data.message || 'Ошибка входа.');
+                    return;
+                }
+
+                // Сохраняем токен в cookie
+                Cookies.set('jwt_token', data.token, {
+                    expires: 1, // 1 день
+                    secure: window.location.protocol === 'https:',
+                    sameSite: 'Strict',
+                });
+                // Перенаправляем пользователя на страницу чата
+                window.location.href = "/chat";
+            } catch (err) {
+                console.error('Ошибка авторизации:', err.message);
+                setError('Ошибка сети. Проверьте соединение или повторите попытку.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        return (
+            <div className="container">
+                <h1>Авторизация</h1>
+                <form onSubmit={handleSubmit}>
+                    <div>
+                        <label>Email:</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div style={{ marginTop: '10px' }}>
+                        <label>Пароль:</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    {error && <p className="error">{error}</p>}
+                    <button type="submit" disabled={loading} style={{ marginTop: '10px' }}>
+                        {loading ? 'Загрузка...' : 'Войти'}
+                    </button>
+                </form>
+            </div>
+        );
+    }
+
+    ReactDOM.render(<LoginPage />, document.getElementById('root'));
+</script>
+</body>
+</html>
