@@ -14,7 +14,11 @@ var (
 		},
 		[]string{"message"},
 	)
-
+	// Определяем метрику типа Gauge для отслеживания количества активных чатов
+	ActiveChatsGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "ws_manager_active_chats_total",
+		Help: "Количество активных чатов в ws manager",
+	})
 	// Счётчик общего количества запросов, разделённый по методу.
 	RequestCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{

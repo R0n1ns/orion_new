@@ -273,7 +273,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "never",
+            "showPoints": "auto",
             "spanNulls": true,
             "stacking": {
               "group": "A",
@@ -330,9 +330,9 @@
             "uid": "ceccivajp46psa"
           },
           "disableTextWrap": false,
-          "editorMode": "builder",
+          "editorMode": "code",
           "exemplar": false,
-          "expr": "message_processing_time_seconds_count{job=\"go-app\"}",
+          "expr": "increase(message_processing_time_seconds_count{job=\"go-app\"}[10s])",
           "format": "time_series",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
@@ -651,8 +651,8 @@
       "targets": [
         {
           "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "avg by(message) (message_processing_time_seconds_bucket{job=\"go-app\"})",
+          "editorMode": "code",
+          "expr": "avg by(message) (increase(message_processing_time_seconds_bucket{job=\"go-app\"}[10s]))",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "legendFormat": "__auto",
@@ -1050,8 +1050,8 @@
       "targets": [
         {
           "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "promhttp_metric_handler_requests_total",
+          "editorMode": "code",
+          "expr": "increase(promhttp_metric_handler_requests_total[1m])",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "legendFormat": "{{code}}",
@@ -1061,6 +1061,103 @@
         }
       ],
       "title": "сеть",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ceccivajp46psa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "id": 46,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.1",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "ws_manager_active_chats_total{job=\"go-app\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "подклчения",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "количество подключений",
       "type": "timeseries"
     }
   ],
@@ -1074,13 +1171,13 @@
     "list": []
   },
   "time": {
-    "from": "2025-02-08T05:41:25.379Z",
-    "to": "2025-02-08T07:41:25.379Z"
+    "from": "now-5m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Prometheus статистика",
   "uid": "UDdpyzz7z",
-  "version": 6,
+  "version": 8,
   "weekStart": ""
 }

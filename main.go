@@ -19,6 +19,8 @@ func init() {
 	prometheus.MustRegister(handlers.ErrorCounter)
 	prometheus.MustRegister(handlers.AppUptime)
 	prometheus.MustRegister(handlers.AppInfo)
+	prometheus.MustRegister(handlers.ActiveChatsGauge)
+
 }
 
 /*

@@ -19,6 +19,13 @@ type WS struct {
 // WSmanager – глобальный экземпляр менеджера WebSocket-соединений.
 var WSmanager = WS{}
 
+func SendCountConn() {
+	ticker := time.NewTicker(time.Second * 5)
+	for _ = range ticker.C {
+		ActiveChatsGauge.Set(float64(len(WSmanager.Connections)))
+	}
+}
+
 // init инициализирует менеджер WebSocket: устанавливает апгрейдер и инициализирует карту подключений.
 func init() {
 	WSmanager.Upgrader = websocket.Upgrader{
@@ -28,6 +35,8 @@ func init() {
 		},
 	}
 	WSmanager.Connections = make(map[uint]*websocket.Conn)
+	go SendCountConn()
+
 }
 
 // HandleWebSocket обрабатывает установку WebSocket-соединения и входящие сообщения от клиента.
