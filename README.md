@@ -1,26 +1,3 @@
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Пет-проект Чата</title>
-  <style>
-      body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          margin: 20px;
-          padding: 20px;
-          background-color: #f4f4f4;
-      }
-      h1, h2 {
-          color: #333;
-      }
-      ul {
-          list-style-type: square;
-      }
-      .todo {
-          color: red;
-          font-weight: bold;
-      }
-  </style>
-</head>
 <body>
   <h1>Проект: Реализация Чата</h1>
   <p><strong>Описание:</strong> Данный пет-проект представляет собой веб-чат с бэкендом на Go, использующим WebSocket для обмена данными. Фронтенд выполнен на HTML, CSS и JavaScript.</p>
