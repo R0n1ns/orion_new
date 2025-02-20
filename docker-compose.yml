@@ -9,17 +9,78 @@ services:
     volumes:
       - grafana-storage:/var/lib/grafana
     networks:
-      - my_network
+      - localNetwork
+
+  consul:
+    image: consul:1.1.0
+    container_name: consul
+    command: agent -dev -client=0.0.0.0
+    ports:
+      - "8500:8500"
+    networks:
+      - localNetwork
+      - serversNetwork
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"   # Dashboard (http://<host>:8080/dashboard/)
+    volumes:
+      - "./traefik.yml:/etc/traefik/traefik.yml:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    networks:
+      - serversNetwork
+  server-app:
+    build: .
+
+    networks:
+      - localNetwork
+      - serversNetwork
+    environment:
+      DATABASE_URL: postgresql://user:password@orion-postgres-1:5432/orion
+      JWT_SECRET: dsfgbrkjewrw324wdf
+      MINIO_ENDPOINT: minio-1:9000
+      MINIO_ACCESS_KEY: youraccesskey
+      MINIO_SECRET_KEY: yoursecretkey
+      MINIO_BUCKET: images
+      MINIO_USE_SSL: false
+      SERVICE_PORT: 8000
+      SERVICE_NAME: myws
+      SERVICE_ID: myws1
+      SERVICE_WEIGHT: 1.0
+
+  server-app2:
+    build: .
+    networks:
+      - localNetwork
+      - serversNetwork
+    environment:
+      DATABASE_URL: postgresql://user:password@orion-postgres-1:5432/orion
+      JWT_SECRET: dsfgbrkjewrw324wdf
+      MINIO_ENDPOINT: minio-1:9000
+      MINIO_ACCESS_KEY: youraccesskey
+      MINIO_SECRET_KEY: yoursecretkey
+      MINIO_BUCKET: images
+      MINIO_USE_SSL: false
+      SERVICE_PORT: 8000
+      SERVICE_NAME: myws
+      SERVICE_ID: myws2
+      SERVICE_WEIGHT: 1.0
 
   prometheus:
-    image: prom/prometheus
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - my_network
+      image: prom/prometheus
+      container_name: prometheus
+      ports:
+        - "9090:9090"
+      volumes:
+        - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      networks:
+        - localNetwork
 
   postgres:
     image: postgres:latest
@@ -29,6 +90,8 @@ services:
       POSTGRES_PASSWORD: password
     ports:
       - "5555:5432"
+    networks:
+      - localNetwork
   minio:
     image: minio/minio
     environment:
@@ -39,10 +102,23 @@ services:
     command: server /data
     ports:
       - "9000:9000"
+    networks:
+      - localNetwork
+
 networks:
-  my_network:
+  localNetwork:
     driver: bridge
+    external: false
+  serversNetwork:
+    driver: bridge
+    external: true
 
 volumes:
   minio-data:
   grafana-storage:
+#curl -H "Host: go-websocket-server" http://127.0.0.1/metrics
+
+#docker network connect localNetwork orion-server-app-1
+#docker network connect serversNetwork orion-server-app-1
+#docker network connect serversNetwork orion-server-app2-1
+#docker network connect localNetwork orion-server-app2-1

@@ -1,0 +1,22 @@
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+#  docker:
+#    endpoint: "unix:///var/run/docker.sock"
+#    network: serversNetwork
+
+  consulCatalog:
+    refreshInterval: 10s
+    endpoint:
+      address: consul:8500
+
+log:
+  filePath: "traefik.log"

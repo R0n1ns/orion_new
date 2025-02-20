@@ -1,5 +1,12 @@
 scrape_configs:
-  - job_name: 'go-app'
+  - job_name: 'service1'
+    metrics_path: /service/metrics
     scrape_interval: 5s
     static_configs:
-      - targets: ['host.docker.internal:8080']
+      - targets: ['orion-server-app-1:8000']
+  - job_name: 'service2'
+    metrics_path: /service/metrics
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['orion-server-app2-1:8000']
+

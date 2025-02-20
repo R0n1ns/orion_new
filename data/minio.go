@@ -5,9 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/joho/godotenv"
 	"io"
-	"log"
 	"os"
 	"strconv"
 
@@ -33,10 +31,6 @@ var MinioMgr *Manager
 
 func init() {
 	var err error
-	err = godotenv.Load(".env")
-	if err != nil {
-		log.Fatalf("Some error occured. Err: %s", err)
-	}
 
 	endpoint := os.Getenv("MINIO_ENDPOINT")
 	accessKey := os.Getenv("MINIO_ACCESS_KEY")

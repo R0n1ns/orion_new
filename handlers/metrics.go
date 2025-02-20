@@ -64,10 +64,3 @@ var (
 		[]string{"version", "build", "commit"},
 	)
 )
-
-//func myFunction() {
-//	start := time.Now()
-//	// Здесь ваш код функции
-//	time.Sleep(100 * time.Millisecond)
-//	funcDuration.Observe(time.Since(start).Seconds())
-//}

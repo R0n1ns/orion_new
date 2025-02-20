@@ -2,7 +2,6 @@ package data
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
@@ -18,10 +17,13 @@ var DB *gorm.DB
 // При возникновении ошибок выполнение завершается с логированием ошибки.
 func init() {
 	var err error
-	err = godotenv.Load(".env")
-	if err != nil {
-		log.Fatalf("Some error occured. Err: %s", err)
-	}
+	//err = godotenv.Load(".env")
+	//
+
+	//if err != nil {
+	//	log.Fatalf("Some error occured. Err: %s", err)
+	//}
+	//
 
 	url := os.Getenv("DATABASE_URL")
 	DB, err = gorm.Open(postgres.Open(url), &gorm.Config{})
