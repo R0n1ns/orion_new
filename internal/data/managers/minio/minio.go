@@ -1,4 +1,4 @@
-package data
+package minio
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ type Manager struct {
 	Bucket string
 }
 
-var MinioMgr *Manager
+//var MinioMgr *Manager
 
 //var (
 //	endpoint  string = "localhost:9000"
@@ -29,7 +29,7 @@ var MinioMgr *Manager
 //	bucket    string = "images"
 //)
 
-func init() {
+func MinioInit() (MinioMgr *Manager) {
 	var err error
 
 	endpoint := os.Getenv("MINIO_ENDPOINT")
@@ -68,10 +68,12 @@ func init() {
 	//	fmt.Errorf("Ошибка подключения к minio")
 	//}
 	fmt.Println("Минио подключен успешно")
+	return MinioMgr
+
 }
 
 // UploadImage загружает данные изображения в указанный бакет.
-func UploadImage(ctx context.Context, objectName string, data []byte, contentType string) error {
+func (MinioMgr *Manager) UploadImage(ctx context.Context, objectName string, data []byte, contentType string) error {
 	reader := bytes.NewReader(data)
 	_, err := MinioMgr.Client.PutObject(ctx, MinioMgr.Bucket, objectName, reader, int64(len(data)), minio.PutObjectOptions{
 		ContentType: contentType,
@@ -90,7 +92,7 @@ func UploadImage(ctx context.Context, objectName string, data []byte, contentTyp
 //
 // Возвращаемое значение:
 //   - string: data URL изображения или "none", если изображение не найдено.
-func GetPhoto(hash string) string {
+func (MinioMgr *Manager) GetPhoto(hash string) string {
 	objectName := hash + ".jpg"
 	ctx := context.Background()
 

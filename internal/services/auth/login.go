@@ -1,10 +1,12 @@
-package handlers
+package auth
 
 import (
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
 	"net/http"
-	"orion/data"
+	"orion/internal/data/managers/postgres"
+	"orion/internal/data/models"
+	jwt2 "orion/pkg/jwt"
 	"os"
 	"time"
 )
@@ -60,8 +62,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Поиск пользователя по email в базе данных.
-	var user data.User
-	if err := data.DB.Where("mail = ?", credentials.Email).First(&user).Error; err != nil {
+	var user models.User
+	if err := postgres.DB.Where("mail = ?", credentials.Email).First(&user).Error; err != nil {
 		jsonResponse(w, http.StatusUnauthorized, map[string]string{"message": "Пользователь не найден"})
 		return
 	}
@@ -81,7 +83,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Создание JWT-токена с временем жизни 24 часа.
 	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &Claims{
+	claims := &jwt2.Claims{
 		UserID: user.ID,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
