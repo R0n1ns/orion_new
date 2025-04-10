@@ -59,7 +59,6 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-    // Компонент модального окна для отображения ошибки доступа к серверу
     function ServerErrorModal({ message, onClose }) {
         return (
             <div className="modal-overlay">
@@ -101,17 +100,15 @@
                     return;
                 }
 
-                // Сохраняем токен в cookie
                 Cookies.set('jwt_token', data.token, {
-                    expires: 1, // 1 день
+                    expires: 1,
                     secure: window.location.protocol === 'https:',
                     sameSite: 'Strict',
                 });
-                // Перенаправляем пользователя на страницу чата
+
                 window.location.href = "/chat";
             } catch (err) {
                 console.error('Ошибка авторизации:', err.message);
-                // При ошибке доступа к серверу отображаем модальное окно
                 setShowServerError(true);
             } finally {
                 setLoading(false);
@@ -122,29 +119,23 @@
             <div className="container">
                 <h1>Авторизация</h1>
                 <form onSubmit={handleSubmit}>
-                    <div>
-                        <label>Email:</label>
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div style={{ marginTop: '10px' }}>
-                        <label>Пароль:</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                    </div>
+                    <label>Email:</label>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+
+                    <label style={{ marginTop: '10px' }}>Пароль:</label>
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+
                     {error && <p className="error">{error}</p>}
+
                     <button type="submit" disabled={loading} style={{ marginTop: '10px' }}>
                         {loading ? 'Загрузка...' : 'Войти'}
                     </button>
                 </form>
+
+                <p style={{ marginTop: '10px' }}>
+                    Нет аккаунта? <a href="/register">Зарегистрироваться</a>
+                </p>
+
                 {showServerError && (
                     <ServerErrorModal
                         message="Ошибка доступа к серверу. Пожалуйста, проверьте соединение или повторите попытку."
