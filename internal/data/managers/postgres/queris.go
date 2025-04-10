@@ -1,10 +1,11 @@
-package data
+package postgres
 
 import (
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
+	"orion/internal/data/models"
 	"os"
 	"sort"
 	"time"
@@ -40,8 +41,8 @@ func init() {
 //
 // Возвращаемое значение:
 //   - User: найденный пользователь (если не найден, вернется пустая структура User).
-func GetUserByID(userid uint) User {
-	var user User
+func GetUserByID(userid uint) models.User {
+	var user models.User
 	DB.Where("id = ?", userid).Find(&user).Order("created_at desc")
 	return user
 }
@@ -112,7 +113,7 @@ func GetChatIDForUsers(user1ID, user2ID uint) int {
 //   - chatid: идентификатор чата (канала).
 //   - userid: идентификатор пользователя, для которого устанавливается флаг прочтения.
 func ReadMessages(chatid float64, userid string) {
-	DB.Model(&Message{}).Where("user_id != ? and channel_id = ? and readed = false", userid, chatid).Update("readed", true)
+	DB.Model(&models.Message{}).Where("user_id != ? and channel_id = ? and readed = false", userid, chatid).Update("readed", true)
 }
 
 // GetChatByID возвращает информацию о чате (канале) по его ID.
@@ -122,8 +123,8 @@ func ReadMessages(chatid float64, userid string) {
 //
 // Возвращаемое значение:
 //   - Channel: найденный чат. Если чат не найден, возвращается пустая структура Channel.
-func GetChatByID(chatid uint) Channel {
-	var chat Channel
+func GetChatByID(chatid uint) models.Channel {
+	var chat models.Channel
 	DB.Where("id = ?", chatid).Find(&chat).Order("created_at desc")
 	return chat
 }
@@ -136,9 +137,9 @@ func GetChatByID(chatid uint) Channel {
 // Возвращаемые значения:
 //   - []Channel: слайс с каналами, связанными с пользователем.
 //   - error: ошибка, если произошла неудача при получении данных.
-func GetChannels(userid uint) ([]Channel, error) {
-	var channels []Channel
-	err := DB.Model(&User{ID: userid}).Association("Channels").Find(&channels)
+func GetChannels(userid uint) ([]models.Channel, error) {
+	var channels []models.Channel
+	err := DB.Model(&models.User{ID: userid}).Association("Channels").Find(&channels)
 	if err != nil {
 		return nil, err
 	}
@@ -153,9 +154,9 @@ func GetChannels(userid uint) ([]Channel, error) {
 // Возвращаемые значения:
 //   - []Message: слайс сообщений канала.
 //   - error: ошибка, если произошла неудача при получении данных.
-func GetChanMassages(chanid uint) ([]Message, error) {
-	var message []Message
-	err := DB.Model(&Channel{ID: chanid}).Association("Messages").Find(&message)
+func GetChanMassages(chanid uint) ([]models.Message, error) {
+	var message []models.Message
+	err := DB.Model(&models.Channel{ID: chanid}).Association("Messages").Find(&message)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +175,7 @@ func GetChanMassages(chanid uint) ([]Message, error) {
 //
 // В случае ошибки при сохранении сообщения в базу данных, ошибка логируется.
 func AddMessage(froid uint, chaid uint, message string) {
-	mess := Message{
+	mess := models.Message{
 		ChannelID: chaid,
 		UserID:    froid,
 		Content:   message,
@@ -195,7 +196,7 @@ func AddMessage(froid uint, chaid uint, message string) {
 //
 // При возникновении ошибки обновления записи, ошибка логируется.
 func AddHexPhoto(userid uint, hex string) {
-	err := DB.Model(&User{}).Where("id = ?", userid).Update("profile_picture", hex)
+	err := DB.Model(&models.User{}).Where("id = ?", userid).Update("profile_picture", hex)
 	if err != nil {
 		log.Printf("Some error occured. Err: %s", err)
 	}
@@ -212,9 +213,9 @@ func AddHexPhoto(userid uint, hex string) {
 // Возвращаемые значения:
 //   - *Channel: указатель на созданный или существующий чат.
 //   - error: ошибка, если один из пользователей не найден или не удалось создать чат.
-func CreateChat(userID1, userID2 uint, channelName string) (*Channel, error) {
+func CreateChat(userID1, userID2 uint, channelName string) (*models.Channel, error) {
 	// Проверяем, существуют ли оба пользователя
-	var user1, user2 User
+	var user1, user2 models.User
 	if err := DB.First(&user1, userID1).Error; err != nil {
 		return nil, fmt.Errorf("user 1 not found: %w", err)
 	}
@@ -226,18 +227,18 @@ func CreateChat(userID1, userID2 uint, channelName string) (*Channel, error) {
 	//channelName := fmt.Sprintf("chat_%d_%d", userID1, userID2)
 
 	// Проверяем, существует ли уже такой чат
-	var existingChannel Channel
+	var existingChannel models.Channel
 	if err := DB.Where("name = ?", channelName).First(&existingChannel).Error; err == nil {
 		return &existingChannel, nil // Чат уже существует
 	}
 
 	// Создаём новый канал
-	chat := Channel{
+	chat := models.Channel{
 		Name:        channelName,
 		Description: fmt.Sprintf("Private chat between user %d and user %d", userID1, userID2),
 		IsPrivate:   true,
 		CreatorID:   userID1,
-		Users:       []User{user1, user2},
+		Users:       []models.User{user1, user2},
 	}
 	if err := DB.Create(&chat).Error; err != nil {
 		return nil, fmt.Errorf("failed to create chat: %w", err)
@@ -254,8 +255,8 @@ func CreateChat(userID1, userID2 uint, channelName string) (*Channel, error) {
 //
 // Возвращаемое значение:
 //   - []User: слайс найденных пользователей.
-func SearchByUsername(username string) []User {
-	var user []User
+func SearchByUsername(username string) []models.User {
+	var user []models.User
 	query := username + "%"
 	DB.Where("user_name LIKE ?", query).Find(&user)
 	return user
@@ -269,9 +270,9 @@ func SearchByUsername(username string) []User {
 // Возвращаемые значения:
 //   - []User: слайс пользователей, находящихся в чате.
 //   - error: ошибка, если не удалось получить список пользователей.
-func GetUsersInChat(chatid uint) ([]User, error) {
-	var users []User
-	err := DB.Model(&Channel{ID: chatid}).Association("Users").Find(&users)
+func GetUsersInChat(chatid uint) ([]models.User, error) {
+	var users []models.User
+	err := DB.Model(&models.Channel{ID: chatid}).Association("Users").Find(&users)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +293,7 @@ func GetUsersInChat(chatid uint) ([]User, error) {
 //   - bool: возвращает true, если все сообщения прочитаны (или их нет), иначе false.
 func IfReadedChat(chatid uint, userID uint) bool {
 	var count int64
-	err := DB.Model(&Message{}).
+	err := DB.Model(&models.Message{}).
 		Where("\"messages\".\"channel_id\" = ?", chatid).
 		Where("\"messages\".\"user_id\" != ?", userID).
 		Where("\"messages\".\"readed\" = false").
