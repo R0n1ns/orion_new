@@ -304,3 +304,26 @@ func IfReadedChat(chatid uint, userID uint) bool {
 	}
 	return true // нет непрочитанных сообщений
 }
+
+// CreateUser сохраняет нового пользователя в базе данных.
+// В случае ошибки функция возвращает ошибку и логирует её.
+func CreateUser(user *User) error {
+	// При необходимости можно добавить логику валидации здесь.
+	if err := DB.Create(user).Error; err != nil {
+		log.Printf("Error creating user: %v", err)
+		return err
+	}
+	return nil
+}
+
+// UpdateUser обновляет информацию о существующем пользователе.
+// Перед вызовом функции предполагается, что user содержит уже существующий ID.
+// Метод Save обновляет все поля записи.
+func UpdateUser(user *User) error {
+	// Если требуется обновлять не все поля, можно использовать метод DB.Model().Updates(...)
+	if err := DB.Save(user).Error; err != nil {
+		log.Printf("Error updating user: %v", err)
+		return err
+	}
+	return nil
+}

@@ -34,7 +34,9 @@ func init() {
 // loggingMiddleware логирует метод запроса, URI и IP-адрес клиента.
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Запрос: %s %s, IP: %s", r.Method, r.RequestURI, r.RemoteAddr)
+		if r.RequestURI != "/service/metrics" {
+			log.Printf("Запрос: %s %s, IP: %s", r.Method, r.RequestURI, r.RemoteAddr)
+		}
 		next.ServeHTTP(w, r)
 	})
 }
@@ -73,11 +75,13 @@ func main() {
 
 	// Регистрация эндпоинтов без префикса.
 	serviceRouter.HandleFunc("/api/login", handlers.LoginHandler).Methods("POST")
+	serviceRouter.HandleFunc("/api/register", handlers.RegisterHandler).Methods("POST")
 	serviceRouter.HandleFunc("/ws", handlers.WSmanager.HandleWebSocket)
 	serviceRouter.Handle("/metrics", promhttp.Handler())
 
 	// Настройка CORS middleware.
 	handler := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3333"}, // разрешить фронтенд
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,

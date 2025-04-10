@@ -72,19 +72,25 @@ func StartTTLCheck(client *consulapi.Client, serviceID string, interval time.Dur
 // chatHandler отправляет HTML-страницу chat.html
 func chatHandler(w http.ResponseWriter, r *http.Request) {
 	// Путь к файлу chat.html, при необходимости измените его
-	http.ServeFile(w, r, "frontclient/front/chat.html")
+	http.ServeFile(w, r, "front/chat.html")
 }
 
 // loginhandler отправляет HTML-страницу chat.html
 func loginhandler(w http.ResponseWriter, r *http.Request) {
 	// Путь к файлу chat.html, при необходимости измените его
-	http.ServeFile(w, r, "frontclient/front/login.html")
+	http.ServeFile(w, r, "front/login.html")
 }
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Запрос: %s %s, IP: %s", r.Method, r.RequestURI, r.RemoteAddr)
 		next.ServeHTTP(w, r)
 	})
+}
+
+// registerhandler отправляет HTML-страницу chat.html
+func registerhandler(w http.ResponseWriter, r *http.Request) {
+	// Путь к файлу chat.html, при необходимости измените его
+	http.ServeFile(w, r, "front/register.html")
 }
 
 // main инициализирует маршруты, применяет CORS middleware и запускает HTTP-сервер.
@@ -98,6 +104,9 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/chat", chatHandler)
 	r.HandleFunc("/login", loginhandler)
+	r.HandleFunc("/register", registerhandler)
+	r.HandleFunc("/", chatHandler)
+
 	r.Use(loggingMiddleware)
 
 	// Вывод в консоль информации о запуске сервера.

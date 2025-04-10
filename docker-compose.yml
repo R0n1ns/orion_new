@@ -44,7 +44,7 @@ services:
     environment:
       DATABASE_URL: postgresql://user:password@orion-postgres-1:5432/orion
       JWT_SECRET: dsfgbrkjewrw324wdf
-      MINIO_ENDPOINT: minio-1:9000
+      MINIO_ENDPOINT: orion-minio-1:9000
       MINIO_ACCESS_KEY: youraccesskey
       MINIO_SECRET_KEY: yoursecretkey
       MINIO_BUCKET: images
@@ -62,7 +62,7 @@ services:
     environment:
       DATABASE_URL: postgresql://user:password@orion-postgres-1:5432/orion
       JWT_SECRET: dsfgbrkjewrw324wdf
-      MINIO_ENDPOINT: minio-1:9000
+      MINIO_ENDPOINT: orion-minio-1:9000
       MINIO_ACCESS_KEY: youraccesskey
       MINIO_SECRET_KEY: yoursecretkey
       MINIO_BUCKET: images
