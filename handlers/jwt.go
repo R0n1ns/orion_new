@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"log"
 	"net/http"
 	"os"
 )
@@ -18,6 +18,8 @@ type Claims struct {
 func extractJWT(w http.ResponseWriter, r *http.Request) (uint, error) {
 	cookie, err := r.Cookie("jwt_token")
 	if err != nil {
+		log.Println(1)
+		log.Println(err)
 		//http.Error(w, "Unauthorized: Missing JWT", http.StatusUnauthorized)
 		return 0, err
 	}
@@ -27,13 +29,15 @@ func extractJWT(w http.ResponseWriter, r *http.Request) (uint, error) {
 		return secretKey, nil
 	})
 	if err != nil {
-		fmt.Println(2, err)
+		log.Println(1)
+		log.Println(err)
 		return 0, err
 	}
 
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
-		fmt.Println(3, ok)
+		log.Println(1)
+		log.Println(err)
 		return 0, err
 	}
 	//fmt.Println("(claims)", claims.UserID)

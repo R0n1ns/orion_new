@@ -4,10 +4,54 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
+	"strconv"
 	"time"
 )
+
+// Metrics for API Gateway
+var (
+	// Request counter
+	gatewayRequestCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gateway_request_total",
+			Help: "Total number of requests processed by the API gateway, by method and path",
+		},
+		[]string{"method", "path"},
+	)
+
+	// Request duration
+	gatewayRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "gateway_request_duration_seconds",
+			Help:    "Request duration in seconds for the API gateway, by method and path",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"method", "path"},
+	)
+
+	// Error counter
+	gatewayErrorCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gateway_error_total",
+			Help: "Total number of errors in the API gateway, by method and path",
+		},
+		[]string{"method", "path", "status"},
+	)
+)
+
+func init() {
+	// Register metrics
+	prometheus.MustRegister(gatewayRequestCounter)
+	prometheus.MustRegister(gatewayRequestDuration)
+	prometheus.MustRegister(gatewayErrorCounter)
+}
 
 // GerConsul создаёт клиента Consul и регистрирует сервис с TTL-проверкой.
 func GetConsul(address, name, serviceID, servAddres string, port int) *consulapi.Client {
@@ -93,26 +137,140 @@ func registerhandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "front/register.html")
 }
 
+// createReverseProxy creates a reverse proxy to the server
+func createReverseProxy(targetHost string) (*httputil.ReverseProxy, error) {
+	target, err := url.Parse(targetHost)
+	if err != nil {
+		return nil, err
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	// Customize the director function to modify the request
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.Host = target.Host
+	}
+
+	// Add metrics collection to the proxy
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		status := resp.StatusCode
+		if status >= 400 {
+			gatewayErrorCounter.WithLabelValues(
+				resp.Request.Method,
+				resp.Request.URL.Path,
+				fmt.Sprintf("%d", status),
+			).Inc()
+		}
+		return nil
+	}
+
+	return proxy, nil
+}
+
+// apiGatewayHandler handles API requests and forwards them to the server
+func apiGatewayHandler(proxy *httputil.ReverseProxy) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Record start time
+		start := time.Now()
+
+		// Increment request counter
+		gatewayRequestCounter.WithLabelValues(r.Method, r.URL.Path).Inc()
+
+		// Create a response recorder to capture the response
+		responseRecorder := &responseRecorder{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK,
+		}
+
+		// Forward the request to the server
+		proxy.ServeHTTP(responseRecorder, r)
+
+		// Record request duration
+		duration := time.Since(start).Seconds()
+		gatewayRequestDuration.WithLabelValues(r.Method, r.URL.Path).Observe(duration)
+
+		// Log the request
+		log.Printf("[API Gateway] %s %s -> %d (%.2fs)", r.Method, r.URL.Path, responseRecorder.statusCode, duration)
+	}
+}
+
+// responseRecorder is a wrapper for http.ResponseWriter that records the status code
+type responseRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+// WriteHeader captures the status code
+func (r *responseRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+	r.ResponseWriter.WriteHeader(statusCode)
+}
+
+// getEnv retrieves the value of the environment variable named by the key.
+// If the variable is not present, the defaultValue is returned.
+func getEnv(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsInt retrieves the value of the environment variable named by the key as an integer.
+// If the variable is not present or cannot be parsed as an integer, the defaultValue is returned.
+func getEnvAsInt(key string, defaultValue int) int {
+	valueStr := getEnv(key, "")
+	if value, err := strconv.Atoi(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
 // main инициализирует маршруты, применяет CORS middleware и запускает HTTP-сервер.
 func main() {
-	// Подключаемся к Consul (Consul запущен в контейнере на порту 8500)
-	client := GetConsul("localhost:8500", "go-websocket-client", "test2", "localhost", 3031)
+	// Get environment variables or use defaults
+	consulAddress := getEnv("CONSUL_ADDRESS", "consul:8500")
+	serviceName := getEnv("SERVICE_NAME", "api-gateway")
+	serviceID := getEnv("SERVICE_ID", "api-gateway1")
+	serviceAddress := getEnv("SERVICE_ADDRESS", "")
+	servicePort := getEnvAsInt("SERVICE_PORT", 3333)
+	serverURL := getEnv("SERVER_URL", "http://server-app:80")
+
+	// Подключаемся к Consul
+	client := GetConsul(consulAddress, serviceName, serviceID, serviceAddress, servicePort)
 
 	// Запускаем горутину для обновления TTL-проверки каждые 10 секунд (меньше чем TTL)
-	go StartTTLCheck(client, "test2-ttl", 10*time.Second) //defer Consul.Agent().ServiceDeregister("test1")
+	go StartTTLCheck(client, serviceID+"-ttl", 10*time.Second)
+
+	// Create reverse proxy to the server
+	serverProxy, err := createReverseProxy(serverURL)
+	if err != nil {
+		log.Fatalf("Failed to create reverse proxy: %v", err)
+	}
+
 	// Создание нового маршрутизатора с использованием Gorilla Mux.
 	r := mux.NewRouter()
+
+	// Static content handlers
 	r.HandleFunc("/chat", chatHandler)
 	r.HandleFunc("/login", loginhandler)
 	r.HandleFunc("/register", registerhandler)
 	r.HandleFunc("/", chatHandler)
 
+	// API Gateway - forward requests to the server
+	apiRouter := r.PathPrefix("/service").Subrouter()
+	apiRouter.PathPrefix("/").HandlerFunc(apiGatewayHandler(serverProxy))
+
+	// Metrics endpoint
+	r.Handle("/metrics", promhttp.Handler())
+
 	r.Use(loggingMiddleware)
 
 	// Вывод в консоль информации о запуске сервера.
-	fmt.Println("Сервер запущен на http://localhost:3333")
+	fmt.Printf("API Gateway запущен на http://localhost:%d\n", servicePort)
 
-	// Запуск HTTP-сервера на порту 8080 с применением настроенного middleware.
+	// Запуск HTTP-сервера на порту из переменной окружения с применением настроенного middleware.
 	// Если сервер не сможет запуститься, будет выведена ошибка с помощью log.Fatal.
-	log.Fatal(http.ListenAndServe(":3333", r))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", servicePort), r))
 }

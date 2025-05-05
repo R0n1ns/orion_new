@@ -157,12 +157,15 @@ func GetChanMassages(chanid uint) ([]Message, error) {
 	var message []Message
 	err := DB.Model(&Channel{ID: chanid}).Association("Messages").Find(&message)
 	if err != nil {
+		log.Print("GetChanMassages" + err.Error())
+		log.Println(chanid)
 		return nil, err
 	}
 	sort.Slice(message, func(i, j int) bool {
 		return message[i].Timestamp.Before(message[j].Timestamp)
 	})
 	return message, nil
+
 }
 
 // AddMessage добавляет новое сообщение в указанный чат.
@@ -181,6 +184,7 @@ func AddMessage(froid uint, chaid uint, message string) {
 		Timestamp: time.Now(),
 	}
 	err := DB.Create(&mess).Error
+
 	if err != nil {
 		log.Printf("Some error occured. Err: %s", err)
 	}
@@ -319,11 +323,12 @@ func CreateUser(user *User) error {
 // UpdateUser обновляет информацию о существующем пользователе.
 // Перед вызовом функции предполагается, что user содержит уже существующий ID.
 // Метод Save обновляет все поля записи.
-func UpdateUser(user *User) error {
+func UpdateUser(userID uint, Mail, UserName, Bio string) error {
 	// Если требуется обновлять не все поля, можно использовать метод DB.Model().Updates(...)
-	if err := DB.Save(user).Error; err != nil {
+	err := DB.Model(&User{}).Where("id = ?", userID).Update("bio", Bio).Update("mail", Mail).Update("user_name", UserName)
+	if err != nil {
 		log.Printf("Error updating user: %v", err)
-		return err
+		return err.Error
 	}
 	return nil
 }

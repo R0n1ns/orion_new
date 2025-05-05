@@ -60,28 +60,39 @@ func main() {
 	serv_id := os.Getenv("SERVICE_ID")
 	weight, _ := strconv.ParseFloat(os.Getenv("SERVICE_WEIGHT"), 64)
 
-	// Подключаемся к Consul
+	// Подключение к Consul
 	client := handlers.GerConsul("consul:8500", serv_name, serv_id, addres, port, weight)
 	go handlers.StartTTLCheck(client, serv_id+"-ttl", 10*time.Second)
 
-	// Создание роутера Gorilla Mux.
+	// Создание роутера
 	r := mux.NewRouter()
-
-	// Подключаем middleware для логирования запросов.
 	r.Use(loggingMiddleware)
 
-	// Создаем подроутер, убирающий префикс "/service"
+	// Подроутер для /service
 	serviceRouter := r.PathPrefix("/service").Subrouter()
 
-	// Регистрация эндпоинтов без префикса.
+	// WebSocket
+	serviceRouter.HandleFunc("/ws", handlers.WSmanager.HandleWebSocket)
+
+	// Auth
 	serviceRouter.HandleFunc("/api/login", handlers.LoginHandler).Methods("POST")
 	serviceRouter.HandleFunc("/api/register", handlers.RegisterHandler).Methods("POST")
-	serviceRouter.HandleFunc("/ws", handlers.WSmanager.HandleWebSocket)
+
+	// HTTP API для чата и профиля
+	serviceRouter.HandleFunc("/api/chats", handlers.GetChatsHandler).Methods("GET")
+	serviceRouter.HandleFunc("/api/users", handlers.GetUsersHandler).Methods("GET")
+	serviceRouter.HandleFunc("/api/chat", handlers.CreateChatHandler).Methods("POST")
+	serviceRouter.HandleFunc("/api/messages", handlers.GetChatMessagesHandler).Methods("GET")
+	serviceRouter.HandleFunc("/api/messages/read", handlers.MarkMessagesReadHandler).Methods("POST", "PUT")
+	serviceRouter.HandleFunc("/api/profile", handlers.UpdateProfileHandler).Methods("PUT")
+	serviceRouter.HandleFunc("/api/profile/photo", handlers.UploadProfilePictureHandler).Methods("POST")
+
+	// Метрики Prometheus
 	serviceRouter.Handle("/metrics", promhttp.Handler())
 
-	// Настройка CORS middleware.
+	// CORS
 	handler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3333"}, // разрешить фронтенд
+		AllowedOrigins:   []string{"http://localhost:3333", "http://frontclient:3333"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,

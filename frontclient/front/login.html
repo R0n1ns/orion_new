@@ -3,13 +3,26 @@
 <head>
     <meta charset="UTF-8" />
     <title>Авторизация</title>
-    <!-- Подключаем React и ReactDOM через CDN -->
-    <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
-    <!-- Babel для трансляции JSX -->
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- js-cookie для работы с cookie -->
+
+    <!-- React -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+
+    <!-- ReactDOM -->
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+
+    <!-- js-cookie -->
     <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.1/dist/js.cookie.min.js"></script>
+
+    <!-- Твой скрипт с type="text/babel" -->
+    <script type="text/babel">
+        ReactDOM.render(
+            <h1>Hello React</h1>,
+            document.getElementById('root')
+        );
+    </script>
+
     <style>
         body {
             margin: 0;
@@ -83,7 +96,7 @@
             setLoading(true);
 
             try {
-                const response = await fetch('http://localhost/service/api/login', {
+                const response = await fetch('http://localhost:3333/service/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password }),

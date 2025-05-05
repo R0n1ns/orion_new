@@ -51,51 +51,11 @@
             max-height: 200px;
             overflow-y: auto;
         }
-        .search-result-item {
-            padding: 8px 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-        }
-        .search-result-item:hover {
-            background-color: #eef;
-        }
         .chat-list {
             overflow-y: auto;
             flex-grow: 1;
         }
-        .chat-item {
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #ddd;
-            position: relative;
-        }
-        .chat-item:hover {
-            background-color: #eef;
-        }
-        .chat-item.active {
-            background-color: #ddeeff;
-        }
-        .chat-name {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: bold;
-        }
-        .chat-preview {
-            margin: 0;
-            font-size: 0.85rem;
-            color: #666;
-        }
-        /* Синий кружок для непрочитанных чатов */
-        .blue-circle {
-            width: 10px;
-            height: 10px;
-            background-color: blue;
-            border-radius: 50%;
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            display: none;
-        }
+
         /* Показываем синий кружок, если чат не прочитан */
         .chat-item.unread .blue-circle {
             display: block;
@@ -154,20 +114,7 @@
             overflow: hidden;
             white-space: normal;
         }
-        .message.received {
-            background-color: #fff;
-            align-self: flex-start;
-        }
-        .message.sent {
-            background-color: #dcf8c6;
-            align-self: flex-end;
-        }
-        .message-meta {
-            font-size: 0.8rem;
-            color: #666;
-            text-align: right;
-            margin-top: 5px;
-        }
+
         .chat-input {
             display: flex;
             align-items: center;
@@ -192,24 +139,7 @@
         .message-input::placeholder {
             color: #999;
         }
-        .status-icon {
-            font-size: 0.8rem;
-            margin-left: 5px;
-        }
-        .status-icon.read {
-            color: blue;
-        }
-        .status-icon.unread {
-            color: gray;
-        }
-        .unread-bubble {
-            width: 10px;
-            height: 10px;
-            background-color: blue;
-            border-radius: 50%;
-            display: inline-block;
-            margin-left: 5px;
-        }
+
         /* Модальные окна */
         .popup-overlay {
             position: fixed;
@@ -252,6 +182,32 @@
             align-items: center;
             cursor: pointer;
             z-index: 1100;
+        }
+        /* Поля редактирования в профиле */
+        .edit-field {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        /* Кнопки */
+        .btn-primary {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn-secondary {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            background-color: #6c757d;
+            color: #fff;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -296,19 +252,36 @@
     </div>
 </div>
 
-<!-- Модальное окно с информацией об аккаунте -->
+<!-- Модальное окно с информацией об аккаунте и редактированием -->
 <div class="popup-overlay" id="account-info-modal">
     <div class="popup-content">
         <button class="close-btn" id="account-info-close">&times;</button>
         <div style="text-align: center; margin-bottom: 20px;">
             <img src="" alt="Account" id="account-info-img" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover;">
         </div>
-        <div id="account-info-fields"></div>
-        <div style="margin-top: 20px;">
-            <button id="change-photo-btn" style="padding: 10px 20px; border-radius: 5px; border: none; background-color: #007bff; color: #fff; cursor: pointer;">
-                Изменить фото
-            </button>
-            <input type="file" accept="image/*" id="file-input" style="display: none;">
+        <!-- Просмотр -->
+        <div id="account-info-view">
+            <p><strong>Mail:</strong> <span id="view-mail"></span></p>
+            <p><strong>UserName:</strong> <span id="view-username"></span></p>
+            <p><strong>Bio:</strong> <span id="view-bio"></span></p>
+            <button class="btn-primary" id="edit-profile-btn">Изменить профиль</button>
+        </div>
+        <!-- Редактирование -->
+        <div id="account-info-edit" style="display: none;">
+            <label>Mail:</label>
+            <input type="email" id="edit-mail" class="edit-field">
+            <label>UserName:</label>
+            <input type="text" id="edit-username" class="edit-field">
+            <label>Bio:</label>
+            <textarea id="edit-bio" class="edit-field" rows="3"></textarea>
+            <!-- 👇 кнопка смены фото -->
+            <div style="margin-top: 20px;">
+                <button id="change-photo-btn" class="btn-secondary">Изменить фото</button>
+                <input type="file" accept="image/*" id="file-input" style="display: none;">
+            </div>
+
+            <button class="btn-primary" id="save-profile-btn">Сохранить</button>
+            <button class="btn-secondary" id="cancel-edit-btn">Отмена</button>
         </div>
     </div>
 </div>
@@ -340,31 +313,28 @@
     var ws = null;
 
     // Получение ссылок на элементы DOM
-    var searchInput      = document.getElementById("search-input");
+    var searchInput = document.getElementById("search-input");
     var searchResultsDiv = document.getElementById("search-results");
-    var chatListDiv      = document.getElementById("chat-list");
-    var chatTitle        = document.getElementById("chat-title");
-    var chatSubtitle     = document.getElementById("chat-subtitle");
-    var chatBody         = document.getElementById("chat-body");
-    var messageInput     = document.getElementById("message-input");
-    var sendBtn          = document.getElementById("send-btn");
-    var chatHeader       = document.getElementById("chat-header");
-    var chatInfoModal    = document.getElementById("chat-info-modal");
-    var chatInfoClose    = document.getElementById("chat-info-close");
-    var chatInfoImg      = document.getElementById("chat-info-img");
-    var chatInfoFields   = document.getElementById("chat-info-fields");
+    var chatListDiv = document.getElementById("chat-list");
+    var chatTitle = document.getElementById("chat-title");
+    var chatSubtitle = document.getElementById("chat-subtitle");
+    var chatBody = document.getElementById("chat-body");
+    var messageInput = document.getElementById("message-input");
+    var sendBtn = document.getElementById("send-btn");
+    var chatHeader = document.getElementById("chat-header");
+    var chatInfoModal = document.getElementById("chat-info-modal");
+    var chatInfoClose = document.getElementById("chat-info-close");
+    var chatInfoImg = document.getElementById("chat-info-img");
+    var chatInfoFields = document.getElementById("chat-info-fields");
     var accountInfoModal = document.getElementById("account-info-modal");
     var accountInfoClose = document.getElementById("account-info-close");
-    var accountInfoImg   = document.getElementById("account-info-img");
-    var accountInfoFields= document.getElementById("account-info-fields");
-    var changePhotoBtn   = document.getElementById("change-photo-btn");
-    var fileInput        = document.getElementById("file-input");
-    var accountStrip     = document.getElementById("account-strip");
-    var accountStripImg  = document.getElementById("account-strip-img");
+    var accountInfoImg = document.getElementById("account-info-img");
+    var accountStrip = document.getElementById("account-strip");
+    var accountStripImg = document.getElementById("account-strip-img");
     var accountStripName = document.getElementById("account-strip-name");
     var serverErrorModal = document.getElementById("server-error-modal");
-
-    // Функция для декодирования JWT (упрощённая версия)
+    let activeUserId = null;
+    // Функция для декодирования JWT
     function jwtDecode(token) {
         var parts = token.split('.');
         if (parts.length !== 3) throw new Error("Invalid token");
@@ -373,16 +343,14 @@
         return JSON.parse(decodedPayload);
     }
 
-    // Извлечение user_id из JWT, хранящегося в cookies
+    // Получение user_id из JWT в cookies
     function getUserIdFromJWT() {
-        var tokenCookie = document.cookie.split("; ").find(function(row) {
-            return row.startsWith("jwt_token=");
-        });
+        var tokenCookie = document.cookie.split("; ").find(row => row.startsWith("jwt_token="));
         if (tokenCookie) {
             var jwt = tokenCookie.split("=")[1];
             try {
                 var decoded = jwtDecode(jwt);
-                return decoded.user_id.toString();
+                return decoded.user_id;
             } catch(e) {
                 console.error("Failed to decode JWT:", e);
                 return null;
@@ -391,7 +359,7 @@
         return null;
     }
 
-    // Функция для сжатия изображения с использованием canvas
+    // Функция для сжатия изображения
     function compressImage(imageFile, callback) {
         var reader = new FileReader();
         reader.onload = function(e) {
@@ -404,17 +372,11 @@
                 canvas.height = img.height * scaleSize;
                 var ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                var compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                callback(compressedDataUrl);
+                callback(canvas.toDataURL('image/jpeg', 0.7));
             };
             img.src = e.target.result;
         };
         reader.readAsDataURL(imageFile);
-    }
-
-    // Функция "разжатия" изображения (просто возвращает переданный URL)
-    function decompressImage(compressedDataUrl) {
-        return compressedDataUrl;
     }
 
     // Отправка сообщения на сервер через WebSocket
@@ -424,57 +386,74 @@
         }
     }
 
-    // Функция для отображения модального окна об ошибке подключения к серверу
+    // Показать модальное окно об ошибке сервера
     function showServerErrorModal() {
         serverErrorModal.style.display = "flex";
     }
 
-    // Установка обработчика закрытия модального окна ошибки сервера
-    document.getElementById("server-error-close").addEventListener("click", function() {
-        serverErrorModal.style.display = "none";
-    });
-
-    // Установка WebSocket-соединения с таймаутом в 10 секунд
+    // Установка WebSocket соединения
     function setupWebSocket() {
-        var token = getUserIdFromJWT();
-        if (!token) {
+        var userId = getUserIdFromJWT();
+        if (!userId) {
             window.location.href = "/login";
             return;
         }
-        ws = new WebSocket("ws://localhost/service/ws");
 
-        // Устанавливаем таймаут в 10 секунд для подключения
-        var connectTimeout = setTimeout(function() {
-            if (ws.readyState !== WebSocket.OPEN) {
-                console.error("WebSocket connection timeout");
-                ws.close();
-                showServerErrorModal();
-            }
-        }, 10000);
+        ws = new WebSocket("ws://localhost:80/service/ws");
 
         ws.onopen = function() {
-            clearTimeout(connectTimeout);
-            sendToServer({ method: "GetChats", query: { userId: token } });
+            console.log("WebSocket connected");
+            // Загружаем чаты и информацию о пользователе
+            loadChats();
         };
+
         ws.onmessage = function(event) {
             var data = JSON.parse(event.data);
-            if (data.error === "Unauthorized" || data.status === 401) {
-                ws.close();
-                window.location.href = "/login";
-                return;
-            }
             handleMessage(data);
         };
+
         ws.onerror = function(error) {
             console.error("WebSocket error:", error);
-            clearTimeout(connectTimeout);
             showServerErrorModal();
         };
+
         ws.onclose = function() {
             console.log("WebSocket disconnected");
-            clearTimeout(connectTimeout);
             showServerErrorModal();
+            // Пытаемся переподключиться через 5 секунд
+            setTimeout(setupWebSocket, 5000);
         };
+    }
+
+    // Загрузка списка чатов
+    function loadChats() {
+        fetch('http://localhost:3333/service/api/chats', {
+            headers: {
+                'Authorization': 'Bearer ' + getJwtToken()
+            },credentials: "include"
+
+        })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                handleMessage({
+                    method: "GetChats",
+                    data: data
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching chats:', error);
+                if (error.message.includes('Unauthorized')) {
+                    window.location.href = "/login";
+                }
+            });
+    }
+
+    // Получение JWT токена из cookies
+    function getJwtToken() {
+        return document.cookie.split('jwt_token=')[1].split(';')[0];
     }
 
     // Обработка входящих сообщений от сервера
@@ -482,149 +461,159 @@
         switch (data.method) {
             case "GetChats":
                 if (data.data.info) {
-                    var profilePic = data.data.info.ProfilePicture === "none"
-                        ? "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png"
-                        : decompressImage(data.data.info.ProfilePicture);
-                    accountInfo = Object.assign({}, data.data.info, { ProfilePicture: profilePic });
+                    accountInfo = data.data.info;
                     updateAccountInfo();
                 }
                 if (data.data.chats) {
-                    chats = data.data.chats;
-                } else {
-                    chats = data.data;
+                    chats = data.data.chats.map(chat => ({
+                        id: chat.id,
+                        name: chat.name,
+                        readed: chat.readed,
+                        isPrivate: chat.Private
+                    }));
+                    updateChatList();
                 }
-                updateChatList();
                 break;
-            case "GetChat":
-                messages = data.data.messages.map(function(msg) {
-                    return {
-                        UserFromID: msg.UserFromID,
-                        Message: msg.Message,
-                        timestamp: new Date(msg.Date).toLocaleString("ru-RU"),
-                        isRead: msg.Readed === "true"
-                    };
-                });
-                isOnline = data.data.Online;
-                if (data.data.info) {
-                    var profilePic = data.data.info.ProfilePicture === "none"
-                        ? "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png"
-                        : data.data.info.ProfilePicture;
-                    chatInfo = Object.assign({}, data.data.info, { ProfilePicture: profilePic });
-                }
-                updateChatHeader();
+
+            case "GetChatMessages":
+                messages = data.data.map(msg => ({
+                    id: msg.id,
+                    UserFromID: msg.from,
+                    Message: msg.message,
+                    timestamp: msg.timestamp,
+                    isRead: msg.readed
+                }));
                 updateChatBody();
                 break;
+
             case "RcvdMessage":
-                handleIncomingMessage(data.data);
+                var msg = data.data;
+
+                // Если чат ещё не выбран, и это первое сообщение — установить activeChatId
+                if (!activeChatId) {
+                    activeChatId = msg.fromChatID;
+                }
+
+                if (msg.fromChatID === activeChatId) {
+                    messages.push({
+                        id: msg.id,
+                        UserFromID: msg.UserFromID,
+                        Message: msg.message,
+                        timestamp: msg.timestamp,
+                        isRead: msg.Readed
+                    });
+                    updateChatBody();
+                } else {
+                    // Увеличить счётчик непрочитанных сообщений для соответствующего чата
+                    unreadMessages[msg.fromChatID] = (unreadMessages[msg.fromChatID] || 0) + 1;
+                    updateChatList();
+                }
                 break;
-            case "ReadedMessages":
-                markMessagesAsRead(data.data.chatId);
-                updateChatBody();
-                break;
+
             case "UsersAnsw":
                 searchResults = data.data;
                 updateSearchResults();
                 break;
+
             case "ChatCreated":
-                chats.push(data.data);
-                handleChatSelect(data.data.id);
+                chats.push({
+                    id: data.data.ID,
+                    name: data.data.Name,
+                    readed: true,
+                    isPrivate: data.data.IsPrivate
+                });
+                handleChatSelect(data.data.ID);
                 updateChatList();
                 break;
+
             case "UpdateProfilePicture":
                 if (data.data && data.data.ProfilePicture) {
-                    var profilePic = data.data.ProfilePicture === "none"
-                        ? "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png"
-                        : decompressImage(data.data.ProfilePicture);
-                    accountInfo.ProfilePicture = profilePic;
+                    accountInfo.ProfilePicture = data.data.ProfilePicture;
                     updateAccountInfo();
                 }
                 break;
+
             default:
                 console.warn("Unknown method:", data.method);
         }
     }
 
-    // Помечаем сообщения в чате как прочитанные
-    function markMessagesAsRead(chatId) {
-        messages = messages.map(function(msg) {
-            if (msg.UserFromID !== getUserIdFromJWT()) {
-                msg.isRead = true;
-            }
-            return msg;
-        });
-    }
+    function handleChatSelect(chatId, otherUserId = null) {
+        if (chatId == null) return;
 
-    // Обработка выбора чата пользователем
-    function handleChatSelect(chatId) {
-        if (!chatId) return;
-        activeChatId = chatId;
-        sendToServer({ method: "GetChat", query: { chatId: chatId, userId: getUserIdFromJWT() } });
-        sendToServer({ method: "ReadMessages", query: { chatId: chatId, userId: getUserIdFromJWT() } });
-        chats = chats.map(function(chat) {
-            if (chat.id === chatId) {
-                chat.readed = true;
-            }
+        activeUserId = null; // Сбрасываем ID пользователя из поиска
+        activeChatId = chatId; // Всегда устанавливаем активный чат
+
+        let url = `http://localhost:3333/service/api/messages?chatId=${chatId}`;
+
+        fetch(url, {
+            headers: {
+                'Authorization': 'Bearer ' + getJwtToken()
+            },
+            credentials: "include"
+        })
+            .then(response => response.json())
+            .then(data => {
+                handleMessage({
+                    method: "GetChatMessages",
+                    data: data.messages
+                });
+
+                // Помечаем сообщения как прочитанные
+                fetch(`http://localhost:3333/service/api/messages/read?chatId=${chatId}`, {
+                    method: 'POST',
+                    credentials: "include",
+                    headers: {
+                        'Authorization': 'Bearer ' + getJwtToken()
+                    }
+                });
+            })
+            .catch(error => console.error('Error fetching messages:', error));
+
+        // Обновляем статус чата
+        chats = chats.map(chat => {
+            if (chat.id === chatId) chat.readed = true;
             return chat;
-        });
-        messages = messages.map(function(msg) {
-            if (msg.UserFromID !== getUserIdFromJWT()) {
-                msg.isRead = true;
-            }
-            return msg;
         });
         unreadMessages[chatId] = 0;
         updateChatList();
     }
 
-    // Обработка входящего сообщения
-    function handleIncomingMessage(data) {
-        var chatId = data.fromChatID;
-        if (chatId === activeChatId) {
-            messages.push({
-                UserFromID: data.UserFromID,
-                Message: data.message,
-                timestamp: new Date(data.timestamp).toLocaleString("ru-RU"),
-                isRead: data.Readed === "true"
-            });
-            updateChatBody();
-        } else {
-            unreadMessages[chatId] = (unreadMessages[chatId] || 0) + 1;
-            updateChatList();
-        }
-    }
 
-    // Обработка отправки нового сообщения
-    function handleSendMessage() {
-        var msg = messageInput.value.trim();
-        if (msg !== "" && activeChatId) {
-            var messageData = {
+    async function handleSendMessage() {
+        const msg = messageInput.value.trim();
+        if (!msg || (!activeChatId && !activeUserId)) return;
+
+        const messageData = activeChatId
+            ? {
                 method: "RcvdMessage",
-                query: {
-                    chatId: activeChatId,
-                    message: msg,
-                    userId: getUserIdFromJWT()
-                }
+                query: { chatId: activeChatId, message: msg }
+            }
+            : {
+                method: "RcvdMessage",
+                query: { user2: activeUserId, message: msg }
             };
-            sendToServer(messageData);
-            messages.push({
-                UserFromID: getUserIdFromJWT(),
-                Message: msg,
-                timestamp: new Date().toLocaleString("ru-RU"),
-                isRead: false
-            });
-            messageInput.value = "";
-            updateChatBody();
-        }
+
+        sendToServer(messageData);
+        messageInput.value = ""; // Очищаем поле ввода
+
+        // УБРАНО РУЧНОЕ ДОБАВЛЕНИЕ В messages
     }
 
-    // Обработка выбора пользователя из результатов поиска
+
+
+    // Обработка выбора пользователя из поиска
     function handleUserSelect(user) {
-        if (user.chat_id !== -1) {
-            handleChatSelect(user.chat_id);
+        activeUserId = user.id;
+
+        if (user.chat_id) {
+            activeChatId = user.chat_id;
+            handleChatSelect(activeChatId);
         } else {
-            var currentUserId = getUserIdFromJWT();
-            sendToServer({ method: "CreateChat", query: { user1: currentUserId, user2: user.id } });
+            activeChatId = null; // Чата пока нет, создадим при отправке первого сообщения
+            clearChatBody(); // можно очистить чат, если выбран новый пользователь
         }
+
         searchInput.value = "";
         searchResults = [];
         updateSearchResults();
@@ -633,215 +622,272 @@
     // Обновление списка чатов
     function updateChatList() {
         chatListDiv.innerHTML = "";
-        chats.forEach(function(chat) {
+        chats.forEach(chat => {
             var chatItem = document.createElement("div");
             chatItem.className = "chat-item";
-            if (chat.readed === false) {
+            if (!chat.readed || unreadMessages[chat.id] > 0) {
                 chatItem.classList.add("unread");
             }
             if (chat.id === activeChatId) {
                 chatItem.classList.add("active");
             }
-            chatItem.addEventListener("click", function() {
-                handleChatSelect(chat.id);
-            });
+            chatItem.addEventListener("click", () => handleChatSelect(chat.id));
+
             var chatName = document.createElement("h3");
             chatName.className = "chat-name";
             chatName.textContent = chat.name;
             chatItem.appendChild(chatName);
-            var blueCircle = document.createElement("div");
-            blueCircle.className = "blue-circle";
-            chatItem.appendChild(blueCircle);
+
+            if (unreadMessages[chat.id] > 0) {
+                var unreadCount = document.createElement("span");
+                unreadCount.className = "unread-count";
+                unreadCount.textContent = unreadMessages[chat.id];
+                chatItem.appendChild(unreadCount);
+            }
+
             chatListDiv.appendChild(chatItem);
         });
     }
 
     // Обновление заголовка чата
     function updateChatHeader() {
-        chatTitle.textContent = "";
-        chats.forEach(function(chat) {
-            if (chat.id === activeChatId) {
-                chatTitle.textContent = chat.name;
-            }
-        });
-        chatSubtitle.textContent = isOnline ? "Online" : "Offline";
+        var chat = chats.find(c => c.id === activeChatId);
+        if (chat) {
+            chatTitle.textContent = chat.name;
+            chatSubtitle.textContent = isOnline ? "Online" : "Offline";
+        }
     }
 
     // Обновление области сообщений
     function updateChatBody() {
         chatBody.innerHTML = "";
-        messages.forEach(function(message) {
+        messages.forEach(message => {
             var messageDiv = document.createElement("div");
             messageDiv.className = "message";
-            if (message.UserFromID === getUserIdFromJWT()) {
-                messageDiv.classList.add("sent");
-            } else {
-                messageDiv.classList.add("received");
-            }
+            messageDiv.classList.add(message.UserFromID === getUserIdFromJWT() ? "sent" : "received");
+
             var msgText = document.createElement("p");
             msgText.className = "message-text";
             msgText.textContent = message.Message;
             messageDiv.appendChild(msgText);
+
             var msgMeta = document.createElement("span");
             msgMeta.className = "message-meta";
-            msgMeta.textContent = message.timestamp;
+            msgMeta.textContent = new Date(message.timestamp).toLocaleString("ru-RU");
+
             if (message.UserFromID === getUserIdFromJWT()) {
                 var statusSpan = document.createElement("span");
                 statusSpan.className = "status-icon " + (message.isRead ? "read" : "unread");
                 statusSpan.textContent = message.isRead ? "✔✔" : "✔";
                 msgMeta.appendChild(statusSpan);
-            } else if (!message.isRead) {
-                var unreadBubble = document.createElement("span");
-                unreadBubble.className = "unread-bubble";
-                msgMeta.appendChild(unreadBubble);
             }
+
             messageDiv.appendChild(msgMeta);
             chatBody.appendChild(messageDiv);
         });
-        // Прокрутка вниз
         chatBody.scrollTop = chatBody.scrollHeight;
     }
 
     // Обновление результатов поиска
     function updateSearchResults() {
         searchResultsDiv.innerHTML = "";
-        searchResults.forEach(function(user) {
-            var item = document.createElement("div");
-            item.className = "search-result-item";
-            item.textContent = user.username;
-            item.addEventListener("click", function() {
-                handleUserSelect(user);
+        var currentUserId = getUserIdFromJWT();
+
+        searchResults
+            .filter(user => user.id.toString() !== currentUserId)
+            .forEach(user => {
+                var item = document.createElement("div");
+                item.className = "search-result-item";
+                item.textContent = user.username;
+                item.addEventListener("click", () => handleUserSelect(user));
+                searchResultsDiv.appendChild(item);
             });
-            searchResultsDiv.appendChild(item);
-        });
     }
 
-    // Обновление информации об аккаунте (фиксированная панель)
+    // Обновление информации об аккаунте
     function updateAccountInfo() {
-        accountStripImg.src = accountInfo.ProfilePicture || "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png";
-        accountStripName.textContent = accountInfo.UserName || "Аккаунт";
+        accountStripImg.src = accountInfo.ProfilePicture || "https://via.placeholder.com/40";
+        accountStripName.textContent = accountInfo.UserName || "User";
     }
-
-    // Открытие модального окна с информацией о чате при клике на заголовок
-    chatHeader.addEventListener("click", function() {
-        chatInfoImg.src = (chatInfo.ProfilePicture && chatInfo.ProfilePicture !== "none")
-            ? chatInfo.ProfilePicture
-            : "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png";
-        chatInfoFields.innerHTML = "";
-        if (chatInfo.Mail && chatInfo.Mail !== "none") {
-            var p = document.createElement("p");
-            p.innerHTML = "<strong>Mail:</strong> " + chatInfo.Mail;
-            chatInfoFields.appendChild(p);
-        }
-        if (chatInfo.IsBlocked && chatInfo.IsBlocked !== "none") {
-            var p = document.createElement("p");
-            p.style.color = "lightcoral";
-            p.innerHTML = "<strong>" + chatInfo.UserName + "</strong> заблокирован";
-            chatInfoFields.appendChild(p);
-        } else if (chatInfo.UserName && chatInfo.UserName !== "none") {
-            var p = document.createElement("p");
-            p.innerHTML = "<strong>UserName:</strong> " + chatInfo.UserName;
-            chatInfoFields.appendChild(p);
-        }
-        if (chatInfo.LastOnline && chatInfo.LastOnline !== "none") {
-            var p = document.createElement("p");
-            p.innerHTML = "<strong>LastOnline:</strong> " + chatInfo.LastOnline;
-            chatInfoFields.appendChild(p);
-        }
-        if (chatInfo.Biom && chatInfo.Biom !== "none") {
-            var p = document.createElement("p");
-            p.innerHTML = "<strong>Biom:</strong> " + chatInfo.Biom;
-            chatInfoFields.appendChild(p);
-        }
-        chatInfoModal.style.display = "flex";
-    });
-
-    // Закрытие модальных окон
-    chatInfoClose.addEventListener("click", function(e) {
-        e.stopPropagation();
-        chatInfoModal.style.display = "none";
-    });
-    accountInfoClose.addEventListener("click", function(e) {
-        e.stopPropagation();
-        accountInfoModal.style.display = "none";
-    });
-
-    // Открытие модального окна с информацией об аккаунте при клике на фиксированную панель
-    accountStrip.addEventListener("click", function() {
-        accountInfoImg.src = (accountInfo.ProfilePicture && accountInfo.ProfilePicture !== "none")
-            ? accountInfo.ProfilePicture
-            : "https://otvet.imgsmail.ru/download/10659780_c5ecacbf3dcd86b3f00a2616c3b37fc0_800.png";
-        accountInfoFields.innerHTML = "";
-        if (accountInfo.Mail && accountInfo.Mail !== "none") {
-            var p = document.createElement("p");
-            p.innerHTML = "<strong>Mail:</strong> " + accountInfo.Mail;
-            accountInfoFields.appendChild(p);
-        }
-        if (accountInfo.IsBlocked && accountInfo.IsBlocked !== "none") {
-            var p = document.createElement("p");
-            p.style.color = "lightcoral";
-            p.innerHTML = "<strong>" + accountInfo.UserName + "</strong> заблокирован";
-            accountInfoFields.appendChild(p);
-        } else if (accountInfo.UserName && accountInfo.UserName !== "none") {
-            var p = document.createElement("p");
-            p.innerHTML = "<strong>UserName:</strong> " + accountInfo.UserName;
-            accountInfoFields.appendChild(p);
-        }
-        if (accountInfo.LastOnline && accountInfo.LastOnline !== "none") {
-            var p = document.createElement("p");
-            p.innerHTML = "<strong>LastOnline:</strong> " + accountInfo.LastOnline;
-            accountInfoFields.appendChild(p);
-        }
-        if (accountInfo.Biom && accountInfo.Biom !== "none") {
-            var p = document.createElement("p");
-            p.innerHTML = "<strong>Biom:</strong> " + accountInfo.Biom;
-            accountInfoFields.appendChild(p);
-        }
-        accountInfoModal.style.display = "flex";
-    });
-
-    // Обработка изменения фото профиля
-    changePhotoBtn.addEventListener("click", function() {
-        fileInput.click();
-    });
-    fileInput.addEventListener("change", function(event) {
-        var file = event.target.files[0];
-        if (file) {
-            compressImage(file, function(compressedDataUrl) {
-                sendToServer({
-                    method: "UpdateProfilePicture",
-                    query: {
-                        userId: getUserIdFromJWT(),
-                        imageData: compressedDataUrl
-                    }
-                });
-            });
-        }
-    });
-
-
-    // Обработчик кнопки отправки сообщения
-    sendBtn.addEventListener("click", handleSendMessage);
-
-    // Дебаунс для поиска пользователей
-    var debounceTimer;
-    searchInput.addEventListener("keyup", function(e) {
-        var query = searchInput.value;
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() {
-            if (query.trim() !== "") {
-                sendToServer({ method: "GetUsers", query: { username: query } });
-            } else {
-                searchResults = [];
-                updateSearchResults();
-            }
-        }, 500);
-    });
 
     // Инициализация при загрузке страницы
     window.addEventListener("load", function() {
         setupWebSocket();
+
+        // Обработчик отправки сообщения по Enter
+        messageInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                handleSendMessage();
+            }
+        });
+
+        // Обработчик кнопки отправки
+        sendBtn.addEventListener("click", handleSendMessage);
+
+        // Дебаунс для поиска пользователей
+        var debounceTimer;
+        searchInput.addEventListener("input", function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                var query = searchInput.value.trim();
+                if (query) {
+                    fetch(`http://localhost:3333/service/api/users?username=${encodeURIComponent(query)}`, {
+                        headers: {
+                            'Authorization': 'Bearer ' + getJwtToken(),
+
+                        },
+                        credentials: "include"
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            handleMessage({
+                                method: "UsersAnsw",
+                                data: data
+
+                            });
+                        })
+                        .catch(error => console.error('Error searching users:', error));
+                } else {
+                    searchResults = [];
+                    updateSearchResults();
+                }
+            }, 500);
+        });
+
+        // Обработчик клика на заголовок чата
+        chatHeader.addEventListener("click", function() {
+            if (activeChatId) {
+                var chat = chats.find(c => c.id === activeChatId);
+                if (chat) {
+                    chatInfoImg.src = "https://via.placeholder.com/150";
+                    chatInfoFields.innerHTML = `
+                    <p><strong>Chat:</strong> ${chat.name}</p>
+                    <p><strong>Status:</strong> ${isOnline ? "Online" : "Offline"}</p>
+                `;
+                    chatInfoModal.style.display = "flex";
+                }
+            }
+        });
+
+        // Обработчик закрытия модальных окон
+        chatInfoClose.addEventListener("click", function(e) {
+            e.stopPropagation();
+            chatInfoModal.style.display = "none";
+        });
+
+        accountInfoClose.addEventListener("click", function(e) {
+            e.stopPropagation();
+            accountInfoModal.style.display = "none";
+        });
+
+        // Обработчик клика на панель аккаунта
+        accountStrip.addEventListener("click", function() {
+            accountInfoImg.src = accountInfo.ProfilePicture || "https://via.placeholder.com/150";
+            document.getElementById("view-mail").textContent = accountInfo.Mail || "";
+            document.getElementById("view-username").textContent = accountInfo.UserName || "";
+            document.getElementById("view-bio").textContent = accountInfo.Biom || "";
+            document.getElementById("account-info-view").style.display = "block";
+            document.getElementById("account-info-edit").style.display = "none";
+            accountInfoModal.style.display = "flex";
+        });
+
+        // Обработчики редактирования профиля
+        document.getElementById("edit-profile-btn").addEventListener("click", function() {
+            document.getElementById("account-info-view").style.display = "none";
+            document.getElementById("account-info-edit").style.display = "block";
+            document.getElementById("edit-mail").value = accountInfo.Mail || "";
+            document.getElementById("edit-username").value = accountInfo.UserName || "";
+            document.getElementById("edit-bio").value = accountInfo.Biom || "";
+        });
+
+        document.getElementById("cancel-edit-btn").addEventListener("click", function() {
+            document.getElementById("account-info-view").style.display = "block";
+            document.getElementById("account-info-edit").style.display = "none";
+        });
+
+        document.getElementById("save-profile-btn").addEventListener("click", function() {
+            const updated = {
+                Mail: document.getElementById("edit-mail").value.trim(),
+                UserName: document.getElementById("edit-username").value.trim(),
+                Biom: document.getElementById("edit-bio").value.trim()
+            };
+
+            fetch('http://localhost:3333/service/api/profile', {
+                method: 'PUT',
+                credentials: "include",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getJwtToken()
+                },
+                body: JSON.stringify(updated)
+            })
+                .then(response => {
+                    // Проверяем статус и наличие контента
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+
+                    // Проверяем, есть ли тело ответа
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    }
+                    return null; // Если ответ пустой
+                })
+                .then(data => {
+                    accountInfo = {...accountInfo, ...updated};
+                    updateAccountInfo();
+                    accountInfoModal.style.display = "none";
+
+                    // Обновляем поля в режиме просмотра
+                    document.getElementById("view-mail").textContent = updated.Mail;
+                    document.getElementById("view-username").textContent = updated.UserName;
+                    document.getElementById("view-bio").textContent = updated.Biom;
+                })
+                .catch(error => {
+                    console.error('Error updating profile:', error);
+                    alert("Не удалось сохранить изменения. Проверьте введенные данные.");
+                });
+        });
+
+        // Обработчик смены фото профиля
+        document.getElementById("change-photo-btn").addEventListener("click", function() {
+            document.getElementById("file-input").click();
+        });
+
+        document.getElementById("file-input").addEventListener("change", function(e) {
+            var file = e.target.files[0];
+            if (file) {
+                compressImage(file, function(compressedDataUrl) {
+                    fetch('http://localhost:3333/service/api/profile/photo', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + getJwtToken()
+                        },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            imageData: compressedDataUrl
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.ProfilePicture) {
+                                accountInfo.ProfilePicture = data.ProfilePicture;
+                                updateAccountInfo();
+                            }
+                        })
+                        .catch(error => console.error('Error updating profile picture:', error));
+                });
+            }
+        });
     });
+
+    // Обработчик закрытия модального окна ошибки сервера
+    document.getElementById("server-error-close").addEventListener("click", function() {
+        serverErrorModal.style.display = "none";
+    });
+
 </script>
 </body>
 </html>
