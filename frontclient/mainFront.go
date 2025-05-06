@@ -1,17 +1,23 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"orion/data"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -137,6 +143,29 @@ func registerhandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "front/register.html")
 }
 
+// Исправленный responseRecorder с поддержкой Hijacker
+type responseRecorder struct {
+	http.ResponseWriter
+	statusCode int
+	hijacked   bool
+}
+
+func (r *responseRecorder) WriteHeader(statusCode int) {
+	if !r.hijacked {
+		r.statusCode = statusCode
+		r.ResponseWriter.WriteHeader(statusCode)
+	}
+}
+
+func (r *responseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := r.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("response writer does not support hijacking")
+	}
+	r.hijacked = true
+	return hijacker.Hijack()
+}
+
 // createReverseProxy creates a reverse proxy to the server
 func createReverseProxy(targetHost string) (*httputil.ReverseProxy, error) {
 	target, err := url.Parse(targetHost)
@@ -146,24 +175,20 @@ func createReverseProxy(targetHost string) (*httputil.ReverseProxy, error) {
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
-	// Customize the director function to modify the request
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		originalDirector(req)
-		req.Host = target.Host
+	proxy.Director = func(r *http.Request) {
+		r.URL.Scheme = target.Scheme
+		r.URL.Host = target.Host
+		r.Host = target.Host
+
+		if strings.EqualFold(r.Header.Get("Connection"), "upgrade") {
+			r.Header.Set("Connection", "upgrade")
+			r.Header.Set("Upgrade", "websocket")
+		}
 	}
 
-	// Add metrics collection to the proxy
-	proxy.ModifyResponse = func(resp *http.Response) error {
-		status := resp.StatusCode
-		if status >= 400 {
-			gatewayErrorCounter.WithLabelValues(
-				resp.Request.Method,
-				resp.Request.URL.Path,
-				fmt.Sprintf("%d", status),
-			).Inc()
-		}
-		return nil
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		log.Printf("Proxy error: %v", err)
+		http.Error(w, "Service unavailable", http.StatusBadGateway)
 	}
 
 	return proxy, nil
@@ -196,16 +221,66 @@ func apiGatewayHandler(proxy *httputil.ReverseProxy) http.HandlerFunc {
 	}
 }
 
-// responseRecorder is a wrapper for http.ResponseWriter that records the status code
-type responseRecorder struct {
-	http.ResponseWriter
-	statusCode int
+// Claims представляет структуру JWT-токена, содержащую ID пользователя и стандартные поля.
+// При необходимости можно расширить эту структуру дополнительными данными.
+type Claims struct {
+	UserID uint `json:"user_id"`
+	jwt.StandardClaims
 }
 
-// WriteHeader captures the status code
-func (r *responseRecorder) WriteHeader(statusCode int) {
-	r.statusCode = statusCode
-	r.ResponseWriter.WriteHeader(statusCode)
+// Обновлённая extractJWT с проверкой алгоритма и срока действия
+func extractJWT(w http.ResponseWriter, r *http.Request) (uint, error) {
+	cookie, err := r.Cookie("jwt_token")
+	if err != nil {
+		return 0, fmt.Errorf("missing token cookie")
+	}
+
+	secretKey := []byte(os.Getenv("JWT_SECRET"))
+	token, err := jwt.ParseWithClaims(cookie.Value, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// Проверка алгоритма подписи
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return secretKey, nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("invalid token: %w", err)
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return 0, fmt.Errorf("invalid token claims")
+	}
+
+	// Проверка срока действия (если ExpiresAt задан)
+	if claims.ExpiresAt < time.Now().Unix() {
+		return 0, fmt.Errorf("token expired")
+	}
+
+	return claims.UserID, nil
+}
+
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Извлечение и валидация токена
+		userID, err := extractJWT(w, r)
+		if err != nil {
+			log.Printf("JWT validation error: %v", err)
+			http.Error(w, "Unauthorized: Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		// Проверка блокировки пользователя
+		user := data.GetUserByID(userID)
+		if user.IsBlocked {
+			http.Error(w, "User is blocked", http.StatusForbidden)
+			return
+		}
+
+		// Передача userID в контекст
+		ctx := context.WithValue(r.Context(), "userID", userID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // getEnv retrieves the value of the environment variable named by the key.
@@ -244,33 +319,33 @@ func main() {
 	go StartTTLCheck(client, serviceID+"-ttl", 10*time.Second)
 
 	// Create reverse proxy to the server
-	serverProxy, err := createReverseProxy(serverURL)
-	if err != nil {
-		log.Fatalf("Failed to create reverse proxy: %v", err)
-	}
+	serverProxy, _ := createReverseProxy(serverURL)
+	wsProxy, _ := createReverseProxy(serverURL)
 
-	// Создание нового маршрутизатора с использованием Gorilla Mux.
 	r := mux.NewRouter()
 
-	// Static content handlers
+	// Статические маршруты
 	r.HandleFunc("/chat", chatHandler)
 	r.HandleFunc("/login", loginhandler)
 	r.HandleFunc("/register", registerhandler)
 	r.HandleFunc("/", chatHandler)
 
-	// API Gateway - forward requests to the server
+	// API Gateway
 	apiRouter := r.PathPrefix("/service").Subrouter()
+	apiRouter.Use(authMiddleware)
 	apiRouter.PathPrefix("/").HandlerFunc(apiGatewayHandler(serverProxy))
 
-	// Metrics endpoint
-	r.Handle("/metrics", promhttp.Handler())
+	// WebSocket (вне префикса /service!)
+	r.Handle("/ws", loggingMiddleware(authMiddleware(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			wsProxy.ServeHTTP(w, r)
+		}),
+	)))
 
+	// Метрики
+	r.Handle("/metrics", promhttp.Handler())
 	r.Use(loggingMiddleware)
 
-	// Вывод в консоль информации о запуске сервера.
-	fmt.Printf("API Gateway запущен на http://localhost:%d\n", servicePort)
-
-	// Запуск HTTP-сервера на порту из переменной окружения с применением настроенного middleware.
-	// Если сервер не сможет запуститься, будет выведена ошибка с помощью log.Fatal.
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", servicePort), r))
+
 }

@@ -51,6 +51,8 @@ services:
       SERVICE_ID: api-gateway1
       SERVICE_WEIGHT: 1.0
       SERVER_URL: http://orion-server-app-1:80
+      JWT_SECRET: dsfgbrkjewrw324wdf
+      DATABASE_URL: postgresql://user:password@orion-postgres-1:5432/orion
     depends_on:
       - server-app
       - consul
@@ -109,6 +111,7 @@ services:
     networks:
       - localNetwork
 
+
 networks:
   localNetwork:
     driver: bridge
@@ -120,6 +123,8 @@ networks:
 volumes:
   minio-data:
   grafana-storage:
+
+
 #curl -H "Host: go-websocket-server" http://127.0.0.1/metrics
 
 #docker network connect localNetwork orion-server-app-1

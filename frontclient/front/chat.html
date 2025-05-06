@@ -84,35 +84,12 @@
             margin: 0;
             font-size: 1.2rem;
         }
-        .chat-subtitle {
-            margin: 0;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
+
         .chat-body {
             flex-grow: 1;
             padding: 10px;
             overflow-y: auto;
             background-color: #f5f5f5;
-        }
-        .chat-date {
-            text-align: center;
-            margin: 10px 0;
-            font-size: 0.9rem;
-            color: #999;
-        }
-        .message {
-            margin-bottom: 10px;
-            max-width: 70%;
-            width: 100%;
-            padding: 10px;
-            border-radius: 10px;
-            position: relative;
-            word-wrap: break-word;
-            word-break: break-word;
-            display: block;
-            overflow: hidden;
-            white-space: normal;
         }
 
         .chat-input {
@@ -209,6 +186,67 @@
             color: #fff;
             cursor: pointer;
         }
+        /* Обновленные стили для элементов чата */
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        .chat-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+            object-fit: cover;
+        }
+
+        .chat-info {
+            flex-grow: 1;
+        }
+
+        .unread-count {
+            background-color: #0088cc;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            cursor: pointer;
+            gap: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .search-result-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .search-result-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .existing-chat-badge {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: #666;
+            padding: 2px 8px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+        }
     </style>
 </head>
 <body>
@@ -227,8 +265,11 @@
     <div class="chat-container">
         <div class="header" id="chat-header">
             <div class="header-info">
-                <h2 class="chat-title" id="chat-title">Chat Title</h2>
-                <p class="chat-subtitle" id="chat-subtitle">Offline</p>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="" alt="User" id="chat-user-photo"
+                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                    <h2 class="chat-title" id="chat-title"></h2>
+                </div>
             </div>
         </div>
         <div class="chat-body" id="chat-body">
@@ -241,14 +282,18 @@
     </div>
 </div>
 
-<!-- Модальное окно с информацией о чате -->
+<!-- Модальное окно с информацией о пользователе чата -->
 <div class="popup-overlay" id="chat-info-modal">
     <div class="popup-content">
         <button class="close-btn" id="chat-info-close">&times;</button>
         <div style="text-align: center; margin-bottom: 20px;">
-            <img src="" alt="Chat" id="chat-info-img" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover;">
+            <img src="" alt="User" id="chat-info-img"
+                 style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover;">
         </div>
-        <div id="chat-info-fields"></div>
+        <div id="chat-info-fields" style="text-align: center;">
+            <p><strong>Имя пользователя:</strong> <span id="chat-info-username"></span></p>
+            <p><strong>Статус:</strong> <span id="chat-info-status">В сети</span></p>
+        </div>
     </div>
 </div>
 
@@ -399,7 +444,7 @@
             return;
         }
 
-        ws = new WebSocket("ws://localhost:80/service/ws");
+        ws = new WebSocket("ws://localhost:3333/service/ws");
 
         ws.onopen = function() {
             console.log("WebSocket connected");
@@ -430,18 +475,30 @@
         fetch('http://localhost:3333/service/api/chats', {
             headers: {
                 'Authorization': 'Bearer ' + getJwtToken()
-            },credentials: "include"
-
+            },
+            credentials: "include"
         })
             .then(response => {
                 if (!response.ok) throw new Error('Network response was not ok');
                 return response.json();
             })
             .then(data => {
-                handleMessage({
-                    method: "GetChats",
-                    data: data
-                });
+                // Обрабатываем чаты напрямую здесь
+                if (data.info) {
+                    accountInfo = data.info;
+                    updateAccountInfo();
+                }
+                if (data.chats) {
+                    chats = data.chats.map(chat => ({
+                        id: chat.id,
+                        username: chat.name,         // Используем поле name из ответа сервера
+                        userPhoto: chat.profile_picture, // Используем поле profile_picture
+                        readed: chat.readed,
+                        isPrivate: chat.Private
+                    }));
+                    updateChatList();
+                    updateChatHeader(); // Обновляем заголовок если есть активный чат
+                }
             })
             .catch(error => {
                 console.error('Error fetching chats:', error);
@@ -459,33 +516,6 @@
     // Обработка входящих сообщений от сервера
     function handleMessage(data) {
         switch (data.method) {
-            case "GetChats":
-                if (data.data.info) {
-                    accountInfo = data.data.info;
-                    updateAccountInfo();
-                }
-                if (data.data.chats) {
-                    chats = data.data.chats.map(chat => ({
-                        id: chat.id,
-                        name: chat.name,
-                        readed: chat.readed,
-                        isPrivate: chat.Private
-                    }));
-                    updateChatList();
-                }
-                break;
-
-            case "GetChatMessages":
-                messages = data.data.map(msg => ({
-                    id: msg.id,
-                    UserFromID: msg.from,
-                    Message: msg.message,
-                    timestamp: msg.timestamp,
-                    isRead: msg.readed
-                }));
-                updateChatBody();
-                break;
-
             case "RcvdMessage":
                 var msg = data.data;
 
@@ -509,74 +539,37 @@
                     updateChatList();
                 }
                 break;
-
-            case "UsersAnsw":
-                searchResults = data.data;
-                updateSearchResults();
-                break;
-
-            case "ChatCreated":
-                chats.push({
-                    id: data.data.ID,
-                    name: data.data.Name,
-                    readed: true,
-                    isPrivate: data.data.IsPrivate
-                });
-                handleChatSelect(data.data.ID);
-                updateChatList();
-                break;
-
-            case "UpdateProfilePicture":
-                if (data.data && data.data.ProfilePicture) {
-                    accountInfo.ProfilePicture = data.data.ProfilePicture;
-                    updateAccountInfo();
-                }
-                break;
-
             default:
                 console.warn("Unknown method:", data.method);
         }
     }
 
-    function handleChatSelect(chatId, otherUserId = null) {
-        if (chatId == null) return;
+    function handleChatSelect(chatId) {
+        activeChatId = chatId;
 
-        activeUserId = null; // Сбрасываем ID пользователя из поиска
-        activeChatId = chatId; // Всегда устанавливаем активный чат
-
-        let url = `http://localhost:3333/service/api/messages?chatId=${chatId}`;
-
-        fetch(url, {
-            headers: {
-                'Authorization': 'Bearer ' + getJwtToken()
-            },
-            credentials: "include"
+        fetch(`http://localhost:3333/service/api/messages?chatId=${chatId}`, {
+            headers: { 'Authorization': 'Bearer ' + getJwtToken() }
         })
             .then(response => response.json())
             .then(data => {
-                handleMessage({
-                    method: "GetChatMessages",
-                    data: data.messages
-                });
+                messages = data.messages.map(msg => ({
+                    id: msg.id,
+                    UserFromID: msg.from,
+                    Message: msg.message,
+                    timestamp: msg.timestamp,
+                    isRead: msg.readed
+                }));
 
-                // Помечаем сообщения как прочитанные
+                updateChatBody();
+                updateChatHeader(); // Добавьте эту строку
+
+                // Помечаем как прочитанные
                 fetch(`http://localhost:3333/service/api/messages/read?chatId=${chatId}`, {
                     method: 'POST',
-                    credentials: "include",
-                    headers: {
-                        'Authorization': 'Bearer ' + getJwtToken()
-                    }
+                    headers: { 'Authorization': 'Bearer ' + getJwtToken() }
                 });
             })
-            .catch(error => console.error('Error fetching messages:', error));
-
-        // Обновляем статус чата
-        chats = chats.map(chat => {
-            if (chat.id === chatId) chat.readed = true;
-            return chat;
-        });
-        unreadMessages[chatId] = 0;
-        updateChatList();
+            .catch(error => console.error('Error:', error));
     }
 
 
@@ -620,85 +613,109 @@
     }
 
     // Обновление списка чатов
+    // Обновленная функция updateChatList
     function updateChatList() {
         chatListDiv.innerHTML = "";
         chats.forEach(chat => {
-            var chatItem = document.createElement("div");
+            const chatItem = document.createElement("div");
             chatItem.className = "chat-item";
-            if (!chat.readed || unreadMessages[chat.id] > 0) {
-                chatItem.classList.add("unread");
-            }
-            if (chat.id === activeChatId) {
-                chatItem.classList.add("active");
-            }
+
+            // Добавляем обработчик ко всему элементу
             chatItem.addEventListener("click", () => handleChatSelect(chat.id));
 
-            var chatName = document.createElement("h3");
-            chatName.className = "chat-name";
-            chatName.textContent = chat.name;
-            chatItem.appendChild(chatName);
+            // Аватар
+            const avatar = document.createElement("img");
+            avatar.className = "chat-avatar";
+            avatar.src = chat.userPhoto || "https://via.placeholder.com/40";
 
+            // Информация о чате
+            const chatInfo = document.createElement("div");
+            chatInfo.className = "chat-info";
+
+            const chatName = document.createElement("h3");
+            chatName.textContent = chat.username;
+
+            // Счетчик непрочитанных
             if (unreadMessages[chat.id] > 0) {
-                var unreadCount = document.createElement("span");
-                unreadCount.className = "unread-count";
-                unreadCount.textContent = unreadMessages[chat.id];
-                chatItem.appendChild(unreadCount);
+                const unread = document.createElement("span");
+                unread.className = "unread-count";
+                unread.textContent = unreadMessages[chat.id];
+                chatInfo.appendChild(unread);
             }
 
+            // Собираем структуру
+            chatInfo.appendChild(chatName);
+            chatItem.appendChild(avatar);
+            chatItem.appendChild(chatInfo);
             chatListDiv.appendChild(chatItem);
         });
     }
 
     // Обновление заголовка чата
     function updateChatHeader() {
-        var chat = chats.find(c => c.id === activeChatId);
+        if (!activeChatId) return;
+
+        const chat = chats.find(c => c.id === activeChatId);
         if (chat) {
-            chatTitle.textContent = chat.name;
-            chatSubtitle.textContent = isOnline ? "Online" : "Offline";
+            // Обновляем заголовок
+            document.getElementById("chat-title").textContent = chat.username;
+
+            // Обновляем аватар в заголовке
+            const headerAvatar = document.getElementById("chat-user-photo");
+            if (headerAvatar) {
+                headerAvatar.src = chat.userPhoto || "https://via.placeholder.com/40";
+            }
         }
     }
-
     // Обновление области сообщений
     function updateChatBody() {
         chatBody.innerHTML = "";
-        messages.forEach(message => {
-            var messageDiv = document.createElement("div");
-            messageDiv.className = "message";
-            messageDiv.classList.add(message.UserFromID === getUserIdFromJWT() ? "sent" : "received");
+        const currentUserId = getUserIdFromJWT();
 
-            var msgText = document.createElement("p");
+        messages.forEach(message => {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message ${message.UserFromID === currentUserId ? "sent" : "received"}`;
+
+            const msgText = document.createElement("p");
             msgText.className = "message-text";
             msgText.textContent = message.Message;
-            messageDiv.appendChild(msgText);
 
-            var msgMeta = document.createElement("span");
+            const msgMeta = document.createElement("span");
             msgMeta.className = "message-meta";
             msgMeta.textContent = new Date(message.timestamp).toLocaleString("ru-RU");
 
-            if (message.UserFromID === getUserIdFromJWT()) {
-                var statusSpan = document.createElement("span");
-                statusSpan.className = "status-icon " + (message.isRead ? "read" : "unread");
-                statusSpan.textContent = message.isRead ? "✔✔" : "✔";
+            // Добавляем статус прочтения для своих сообщений
+            if (message.UserFromID === currentUserId) {
+                const statusSpan = document.createElement("span");
+                statusSpan.className = `status-icon ${message.isRead ? "read" : "unread"}`;
+                statusSpan.textContent = message.isRead ? "✓✓" : "✓";
                 msgMeta.appendChild(statusSpan);
             }
 
+            messageDiv.appendChild(msgText);
             messageDiv.appendChild(msgMeta);
             chatBody.appendChild(messageDiv);
         });
+
         chatBody.scrollTop = chatBody.scrollHeight;
     }
 
     // Обновление результатов поиска
     function updateSearchResults() {
         searchResultsDiv.innerHTML = "";
-        var currentUserId = getUserIdFromJWT();
+        const currentUserId = getUserIdFromJWT();
 
         searchResults
             .filter(user => user.id.toString() !== currentUserId)
             .forEach(user => {
-                var item = document.createElement("div");
+                const item = document.createElement("div");
                 item.className = "search-result-item";
-                item.textContent = user.username;
+                item.innerHTML = `
+                <img src="${user.profile_picture || 'https://via.placeholder.com/40'}"
+                     class="search-result-avatar">
+                <span>${user.username}</span>
+                ${user.chat_id ? `<span class="existing-chat-badge">Чат существует</span>` : ''}
+            `;
                 item.addEventListener("click", () => handleUserSelect(user));
                 searchResultsDiv.appendChild(item);
             });
@@ -725,28 +742,25 @@
         sendBtn.addEventListener("click", handleSendMessage);
 
         // Дебаунс для поиска пользователей
-        var debounceTimer;
+        // Обработчик ввода поиска
+        let debounceTimer;
         searchInput.addEventListener("input", function() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
-                var query = searchInput.value.trim();
+                const query = this.value.trim();
                 if (query) {
                     fetch(`http://localhost:3333/service/api/users?username=${encodeURIComponent(query)}`, {
                         headers: {
-                            'Authorization': 'Bearer ' + getJwtToken(),
-
+                            'Authorization': 'Bearer ' + getJwtToken()
                         },
                         credentials: "include"
                     })
                         .then(response => response.json())
-                        .then(data => {
-                            handleMessage({
-                                method: "UsersAnsw",
-                                data: data
-
-                            });
+                        .then(users => {
+                            searchResults = users; // Предполагаем, что сервер возвращает массив пользователей напрямую
+                            updateSearchResults();
                         })
-                        .catch(error => console.error('Error searching users:', error));
+                        .catch(error => console.error('Search error:', error));
                 } else {
                     searchResults = [];
                     updateSearchResults();
@@ -757,18 +771,17 @@
         // Обработчик клика на заголовок чата
         chatHeader.addEventListener("click", function() {
             if (activeChatId) {
-                var chat = chats.find(c => c.id === activeChatId);
+                const chat = chats.find(c => c.id === activeChatId);
                 if (chat) {
-                    chatInfoImg.src = "https://via.placeholder.com/150";
-                    chatInfoFields.innerHTML = `
-                    <p><strong>Chat:</strong> ${chat.name}</p>
-                    <p><strong>Status:</strong> ${isOnline ? "Online" : "Offline"}</p>
-                `;
-                    chatInfoModal.style.display = "flex";
+                    // Обновляем данные в модальном окне
+                    document.getElementById("chat-info-img").src = chat.userPhoto || "https://via.placeholder.com/150";
+                    document.getElementById("chat-info-username").textContent = chat.username;
+
+                    // Показываем модальное окно
+                    document.getElementById("chat-info-modal").style.display = "flex";
                 }
             }
         });
-
         // Обработчик закрытия модальных окон
         chatInfoClose.addEventListener("click", function(e) {
             e.stopPropagation();

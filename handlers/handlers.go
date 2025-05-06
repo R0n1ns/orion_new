@@ -34,10 +34,11 @@ func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
 		for _, user := range users {
 			if user.ID != userID {
 				chatsJSON[i] = map[string]interface{}{
-					"id":      chat.ID,
-					"name":    user.UserName,
-					"readed":  data.IfReadedChat(chat.ID, userID),
-					"Private": chat.IsPrivate,
+					"id":              chat.ID,
+					"name":            user.UserName,
+					"readed":          data.IfReadedChat(chat.ID, userID),
+					"Private":         chat.IsPrivate,
+					"profile_picture": data.GetPhoto(user.ProfilePicture),
 				}
 			}
 		}
@@ -75,9 +76,10 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 			continue // не показываем себя
 		}
 		res = append(res, map[string]interface{}{
-			"id":       u.ID,
-			"username": u.UserName,
-			"chat_id":  data.GetChatIDForUsers(userID, u.ID),
+			"id":              u.ID,
+			"username":        u.UserName,
+			"profile_picture": data.GetPhoto(u.ProfilePicture), // Полный URL
+			"chat_id":         data.GetChatIDForUsers(userID, u.ID),
 		})
 	}
 	json.NewEncoder(w).Encode(res)
