@@ -21,20 +21,6 @@ services:
       - localNetwork
       - serversNetwork
 
-#  traefik:
-#    image: traefik:v2.9
-#    container_name: traefik
-#    ports:
-#      - "80:80"
-#      - "443:443"
-#      - "8080:8080"   # Dashboard (http://<host>:8080/dashboard/)
-#    volumes:
-#      - "./traefik.yml:/etc/traefik/traefik.yml:ro"
-#      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-#    command:
-#      - --configFile=/etc/traefik/traefik.yml
-#    networks:
-#      - serversNetwork
   frontclient:
     build:
       context: .

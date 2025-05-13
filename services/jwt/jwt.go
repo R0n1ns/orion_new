@@ -1,4 +1,4 @@
-package handlers
+package jwt
 
 import (
 	"github.com/dgrijalva/jwt-go"
@@ -15,7 +15,7 @@ type Claims struct {
 }
 
 // Extract JWT token from cookies
-func extractJWT(w http.ResponseWriter, r *http.Request) (uint, error) {
+func ExtractJWT(w http.ResponseWriter, r *http.Request) (uint, error) {
 	cookie, err := r.Cookie("jwt_token")
 	if err != nil {
 		log.Println(1)

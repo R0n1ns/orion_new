@@ -9,8 +9,11 @@ import (
 	"github.com/rs/cors"
 	"log"
 	"net/http"
-	"orion/data"
+	"orion/data/manager"
 	"orion/handlers"
+	"orion/services/consul"
+	"orion/services/metrics"
+	"orion/services/ws"
 	"os"
 	"strconv"
 	"time"
@@ -19,15 +22,15 @@ import (
 var Consul *consulapi.Client
 
 func init() {
-	data.Migrate()
+	manager.Migrate()
 	// Регистрируем метрику в реестре Prometheus
-	prometheus.MustRegister(handlers.MessageProcessingTime)
-	prometheus.MustRegister(handlers.RequestCounter)
-	prometheus.MustRegister(handlers.RequestDuration)
-	prometheus.MustRegister(handlers.ErrorCounter)
-	prometheus.MustRegister(handlers.AppUptime)
-	prometheus.MustRegister(handlers.AppInfo)
-	prometheus.MustRegister(handlers.ActiveChatsGauge)
+	prometheus.MustRegister(metrics.MessageProcessingTime)
+	prometheus.MustRegister(metrics.RequestCounter)
+	prometheus.MustRegister(metrics.RequestDuration)
+	prometheus.MustRegister(metrics.ErrorCounter)
+	prometheus.MustRegister(metrics.AppUptime)
+	prometheus.MustRegister(metrics.AppInfo)
+	prometheus.MustRegister(metrics.ActiveChatsGauge)
 
 }
 
@@ -61,8 +64,8 @@ func main() {
 	weight, _ := strconv.ParseFloat(os.Getenv("SERVICE_WEIGHT"), 64)
 
 	// Подключение к Consul
-	client := handlers.GerConsul("consul:8500", serv_name, serv_id, addres, port, weight)
-	go handlers.StartTTLCheck(client, serv_id+"-ttl", 10*time.Second)
+	client := consul.GerConsul("consul:8500", serv_name, serv_id, addres, port, weight)
+	go consul.StartTTLCheck(client, serv_id+"-ttl", 10*time.Second)
 
 	// Создание роутера
 	r := mux.NewRouter()
@@ -72,7 +75,7 @@ func main() {
 	serviceRouter := r.PathPrefix("/service").Subrouter()
 
 	// WebSocket
-	serviceRouter.HandleFunc("/ws", handlers.WSmanager.HandleWebSocket)
+	serviceRouter.HandleFunc("/ws", ws.WSmanager.HandleWebSocket)
 
 	// Auth
 	serviceRouter.HandleFunc("/api/login", handlers.LoginHandler).Methods("POST")

@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
 	"net/http"
-	"orion/data"
+	"orion/data/manager"
+	"orion/data/models"
+	jwt2 "orion/services/jwt"
 	"os"
 	"time"
 )
@@ -60,8 +62,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Поиск пользователя по email в базе данных.
-	var user data.User
-	if err := data.DB.Where("mail = ?", credentials.Email).First(&user).Error; err != nil {
+	var user models.User
+	if err := manager.DB.Where("mail = ?", credentials.Email).First(&user).Error; err != nil {
 		jsonResponse(w, http.StatusUnauthorized, map[string]string{"message": "Пользователь не найден"})
 		return
 	}
@@ -81,7 +83,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Создание JWT-токена с временем жизни 24 часа.
 	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &Claims{
+	claims := &jwt2.Claims{
 		UserID: user.ID,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
@@ -127,14 +129,14 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Создание нового экземпляра пользователя.
-	newUser := data.User{
+	newUser := models.User{
 		UserName: reqData.UserName,
 		Mail:     reqData.Email,
 		Password: reqData.Password, // В реальном проекте пароль необходимо хешировать (например, с помощью bcrypt).
 	}
 
 	// Вызов функции создания пользователя из пакета data.
-	if err := data.CreateUser(&newUser); err != nil {
+	if err := manager.CreateUser(&newUser); err != nil {
 		// Если произошла ошибка при создании, возвращаем HTTP 500.
 		jsonResponse(w, http.StatusInternalServerError, map[string]string{"message": "Ошибка регистрации пользователя"})
 		return
@@ -144,7 +146,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// Здесь можно повторно использовать логику из LoginHandler для формирования токена.
 	//
 	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &Claims{
+	claims := &jwt2.Claims{
 		UserID: newUser.ID,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),

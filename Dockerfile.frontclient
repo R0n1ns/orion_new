@@ -14,7 +14,7 @@ FROM alpine:latest
 WORKDIR /app
 
 COPY --from=builder /app/frontclient_app /app/frontclient
-COPY --from=builder /app/frontclient/front /app/front
+COPY --from=builder /app/frontclient /app
 
 EXPOSE 3333
 CMD ["/app/frontclient"]

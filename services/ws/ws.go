@@ -1,10 +1,12 @@
-package handlers
+package ws
 
 import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"orion/data"
+	"orion/data/manager"
+	"orion/services/jwt"
+	"orion/services/metrics"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -22,7 +24,7 @@ var WSmanager = WS{}
 func SendCountConn() {
 	ticker := time.NewTicker(time.Second * 5)
 	for _ = range ticker.C {
-		ActiveChatsGauge.Set(float64(len(WSmanager.Connections)))
+		metrics.ActiveChatsGauge.Set(float64(len(WSmanager.Connections)))
 	}
 }
 
@@ -43,7 +45,7 @@ func init() {
 // Функция извлекает JWT-токен для идентификации пользователя, обновляет карту соединений и
 // выполняет обработку поступающих запросов.
 func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	userID, err := extractJWT(w, r)
+	userID, err := jwt.ExtractJWT(w, r)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -81,7 +83,7 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 		defer func(method string, start time.Time) {
 			elapsed := time.Since(start)
-			MessageProcessingTime.WithLabelValues(method).Observe(elapsed.Seconds())
+			metrics.MessageProcessingTime.WithLabelValues(method).Observe(elapsed.Seconds())
 		}(dt.Method, startTime)
 
 		if dt.Method != "RcvdMessage" {
@@ -115,7 +117,7 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			user2ID := uint(user2Raw.(float64))
 
-			newChat, err := data.CreateChat(userID, user2ID, "еые")
+			newChat, err := manager.CreateChat(userID, user2ID, "еые")
 			if err != nil {
 				log.Println("CreateChat error:", err)
 				continue
@@ -125,7 +127,7 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Добавляем сообщение
-		data.AddMessage(userID, chatId, msg.Message)
+		manager.AddMessage(userID, chatId, msg.Message)
 
 		// Формируем ответ
 		resp := map[string]interface{}{
@@ -139,7 +141,7 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 
-		users, err := data.GetUsersInChat(chatId)
+		users, err := manager.GetUsersInChat(chatId)
 		if err != nil {
 			log.Println("GetUsersInChat error:", err)
 			continue
