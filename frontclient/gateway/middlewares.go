@@ -51,7 +51,7 @@ func CombinedMiddleware(next http.Handler) http.Handler {
 		}
 		_, isPublic := public[path]
 
-		var key string
+		var UserId string
 		if !isPublic {
 			// Аутентификация JWT
 			id, err := utils.ExtractJWT(w, r)
@@ -65,10 +65,10 @@ func CombinedMiddleware(next http.Handler) http.Handler {
 				http.Error(w, "User blocked", http.StatusForbidden)
 				return
 			}
-			key = strconv.Itoa(int(id))
+			UserId = strconv.Itoa(int(id))
 		} else {
 			// Неавторизованный — позже по IP
-			key = ""
+			UserId = ""
 		}
 
 		// Rate-limit
@@ -78,7 +78,7 @@ func CombinedMiddleware(next http.Handler) http.Handler {
 			handler.ServeHTTP(w, r)
 		} else {
 			// Авторизованный через LimitByKeys
-			if httpErr := tollbooth.LimitByKeys(authLimiter, []string{key}); httpErr != nil {
+			if httpErr := tollbooth.LimitByKeys(authLimiter, []string{UserId}); httpErr != nil {
 				http.Error(w, httpErr.Message, httpErr.StatusCode)
 				return
 			}
@@ -88,18 +88,18 @@ func CombinedMiddleware(next http.Handler) http.Handler {
 		// Метрики и логирование (кроме /metrics)
 		if path != "/metrics" {
 			if isPublic {
-				key = "anonymous"
+				UserId = "anonymous"
 			}
 			services.GatewayRequestCounter.WithLabelValues(r.Method, path).Inc()
-			services.UserPathCounter.WithLabelValues(key, path).Inc()
-			services.UserRequestCounter.WithLabelValues(key).Inc()
+			services.UserPathCounter.WithLabelValues(UserId, path).Inc()
+			services.UserRequestCounter.WithLabelValues(UserId).Inc()
 
 			timer := prometheus.NewTimer(
 				services.GatewayRequestDuration.WithLabelValues(r.Method, path),
 			)
 			defer timer.ObserveDuration()
 
-			log.Printf("[%s] %s %s", key, r.Method, path)
+			log.Printf("[%s] %s %s", UserId, r.Method, path)
 		}
 	})
 }
