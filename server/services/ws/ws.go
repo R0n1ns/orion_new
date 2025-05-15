@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 	"orion/data/manager"
-	"orion/services/jwt"
-	"orion/services/metrics"
+	"orion/server/services/jwt"
+	"orion/server/services/metrics"
 	"time"
 
 	"github.com/gorilla/websocket"

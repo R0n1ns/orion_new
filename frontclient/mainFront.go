@@ -7,12 +7,11 @@ import (
 	"log"
 	"net/http"
 	"orion/frontclient/gateway"
-	"orion/frontclient/services"
+	_ "orion/frontclient/services"
 	"orion/frontclient/utils"
 )
 
 func main() {
-	services.RunConsulFromEnv()
 	serverURL := utils.GetEnv("SERVER_URL", "http://server-app:80")
 
 	serverProxy, _ := gateway.CreateReverseProxy(serverURL)

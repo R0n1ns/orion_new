@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"orion/data/manager"
 	"orion/data/models"
-	jwt2 "orion/services/jwt"
+	jwt2 "orion/server/services/jwt"
 	"os"
 	"time"
 )

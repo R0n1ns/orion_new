@@ -4,6 +4,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+func init() {
+	// Регистрируем метрику в реестре Prometheus
+	prometheus.MustRegister(MessageProcessingTime)
+	prometheus.MustRegister(RequestCounter)
+	prometheus.MustRegister(RequestDuration)
+	prometheus.MustRegister(ErrorCounter)
+	prometheus.MustRegister(AppUptime)
+	prometheus.MustRegister(AppInfo)
+	prometheus.MustRegister(ActiveChatsGauge)
+}
+
 var (
 	// Существующая гистограмма для времени обработки сообщений.
 	MessageProcessingTime = prometheus.NewHistogramVec(
