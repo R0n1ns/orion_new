@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat App</title>
+    <style>
+        /* Основные стили */
+        body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .app-container {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .chat-list-container {
+            width: 30%;
+            background-color: #f7f7f7;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #ddd;
+            height: 100%;
+        }
+        .search-bar {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+        }
+        .search-icon {
+            margin-right: 5px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            outline: none;
+        }
+        .search-results {
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .chat-list {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        /* Показываем синий кружок, если чат не прочитан */
+        .chat-item.unread .blue-circle {
+            display: block;
+        }
+        .chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #0088cc;
+            padding: 10px;
+            color: white;
+            cursor: pointer;
+        }
+        .header-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .chat-title {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .chat-body {
+            flex-grow: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #f5f5f5;
+        }
+
+        .chat-input {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #fff;
+            border-top: 1px solid #ddd;
+        }
+        .input-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+        .message-input::placeholder {
+            color: #999;
+        }
+
+        /* Модальные окна */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .popup-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            position: relative;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        /* Фиксированная панель аккаунта */
+        .account-strip {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            z-index: 1100;
+        }
+        /* Поля редактирования в профиле */
+        .edit-field {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        /* Кнопки */
+        .btn-primary {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn-secondary {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            background-color: #6c757d;
+            color: #fff;
+            cursor: pointer;
+        }
+        /* Обновленные стили для элементов чата */
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        .chat-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+            object-fit: cover;
+        }
+
+        .chat-info {
+            flex-grow: 1;
+        }
+
+        .unread-count {
+            background-color: #0088cc;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            cursor: pointer;
+            gap: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .search-result-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .search-result-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .existing-chat-badge {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: #666;
+            padding: 2px 8px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+        }
+        /* В разделе стилей для account-strip */
+        .account-strip {
+            /* Существующие стили */
+            gap: 10px; /* Добавляем отступ между элементами */
+        }
+
+        #logout-btn {
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
+        }
+
+        #logout-btn:hover {
+            background-color: rgba(255, 0, 0, 0.8);
+        }
+
+        .blocked-message {
+            color: #ff4444;
+            font-size: 0.9em;
+            margin: 8px 0;
+            padding: 4px;
+            text-align: center;
+            background: #ffeeee;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .blocked .message-input {
+            background-color: #fff0f0 !important;
+            border-color: #ffcccc !important;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- Левая панель: список чатов и поиск пользователей -->
+    <div class="chat-list-container">
+        <div class="search-bar">
+            <span class="search-icon">&#128269;</span>
+            <input type="text" placeholder="Search users..." class="search-input" id="search-input">
+        </div>
+        <div class="search-results" id="search-results"></div>
+        <div class="chat-list" id="chat-list"></div>
+    </div>
+
+    <!-- Правая панель: окно чата с сообщениями -->
+    <div class="chat-container">
+        <div class="header" id="chat-header">
+            <div class="header-info">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="" alt="User" id="chat-user-photo"
+                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                    <h2 class="chat-title" id="chat-title"></h2>
+                </div>
+            </div>
+        </div>
+        <div class="chat-body" id="chat-body">
+            <!-- Здесь будут отображаться сообщения -->
+        </div>
+        <div class="chat-input" id="chat-input">
+            <div class="blocked-message" id="blocked-message">Вы не можете отправлять сообщения: пользователи заблокированы</div>
+            <input type="text" class="message-input" placeholder="Type a message..." id="message-input">
+            <button class="input-btn send-btn" id="send-btn">Send</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с информацией о пользователе чата -->
+<div class="popup-overlay" id="chat-info-modal">
+    <div class="popup-content">
+        <button class="close-btn" id="chat-info-close">&times;</button>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="" alt="User" id="chat-info-img"
+                 style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover;">
+        </div>
+        <div id="chat-info-fields" style="text-align: center;">
+            <p><strong>Имя пользователя:</strong> <span id="chat-info-username"></span></p>
+            <p><strong>Статус:</strong> <span id="chat-info-status">В сети</span></p>
+            <button class="btn-primary" id="block-toggle-btn">Заблокировать</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с информацией об аккаунте и редактированием -->
+<div class="popup-overlay" id="account-info-modal">
+    <div class="popup-content">
+        <button class="close-btn" id="account-info-close">&times;</button>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="" alt="Account" id="account-info-img" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover;">
+        </div>
+        <!-- Просмотр -->
+        <div id="account-info-view">
+            <p><strong>Mail:</strong> <span id="view-mail"></span></p>
+            <p><strong>UserName:</strong> <span id="view-username"></span></p>
+            <p><strong>Bio:</strong> <span id="view-bio"></span></p>
+            <button class="btn-primary" id="edit-profile-btn">Изменить профиль</button>
+        </div>
+        <!-- Редактирование -->
+        <div id="account-info-edit" style="display: none;">
+            <label>Mail:</label>
+            <input type="email" id="edit-mail" class="edit-field">
+            <label>UserName:</label>
+            <input type="text" id="edit-username" class="edit-field">
+            <label>Bio:</label>
+            <textarea id="edit-bio" class="edit-field" rows="3"></textarea>
+            <!-- 👇 кнопка смены фото -->
+            <div style="margin-top: 20px;">
+                <button id="change-photo-btn" class="btn-secondary">Изменить фото</button>
+                <input type="file" accept="image/*" id="file-input" style="display: none;">
+            </div>
+
+            <button class="btn-primary" id="save-profile-btn">Сохранить</button>
+            <button class="btn-secondary" id="cancel-edit-btn">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<!-- Фиксированная панель аккаунта -->
+<div class="account-strip" id="account-strip">
+    <img src="" alt="Profile" id="account-strip-img" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+    <span id="account-strip-name" style="margin-left: 10px;">Аккаунт</span>
+    <!-- Добавляем кнопку выхода -->
+    <button id="logout-btn" style="margin-left: auto; background: none; border: none; color: #ff4444; cursor: pointer;">
+        Выйти
+    </button>
+</div>
+<!-- Модальное окно с сообщением о проблемах с сервером по WebSocket -->
+<div class="popup-overlay" id="server-error-modal">
+    <div class="popup-content">
+        <button class="close-btn" id="server-error-close">&times;</button>
+        <p>Проблемы с сервером: не удалось подключиться по WebSocket.</p>
+    </div>
+</div>
+
+<script>
+    // Глобальные переменные
+    var chats = [];
+    var messages = [];
+    var unreadMessages = {}; // { chatId: count }
+    var isOnline = false;
+    var searchResults = [];
+    var chatInfo = {};
+    var accountInfo = {};
+    var activeChatId = null;
+    var ws = null;
+
+    // Получение ссылок на элементы DOM
+    var searchInput = document.getElementById("search-input");
+    var searchResultsDiv = document.getElementById("search-results");
+    var chatListDiv = document.getElementById("chat-list");
+    var chatTitle = document.getElementById("chat-title");
+    var chatSubtitle = document.getElementById("chat-subtitle");
+    var chatBody = document.getElementById("chat-body");
+    var messageInput = document.getElementById("message-input");
+    var sendBtn = document.getElementById("send-btn");
+    var chatHeader = document.getElementById("chat-header");
+    var chatInfoModal = document.getElementById("chat-info-modal");
+    var chatInfoClose = document.getElementById("chat-info-close");
+    var chatInfoImg = document.getElementById("chat-info-img");
+    var chatInfoFields = document.getElementById("chat-info-fields");
+    var accountInfoModal = document.getElementById("account-info-modal");
+    var accountInfoClose = document.getElementById("account-info-close");
+    var accountInfoImg = document.getElementById("account-info-img");
+    var accountStrip = document.getElementById("account-strip");
+    var accountStripImg = document.getElementById("account-strip-img");
+    var accountStripName = document.getElementById("account-strip-name");
+    var serverErrorModal = document.getElementById("server-error-modal");
+    let activeUserId = null;
+    
+    // Функция для декодирования JWT
+    function jwtDecode(token) {
+        var parts = token.split('.');
+        if (parts.length !== 3) throw new Error("Invalid token");
+        var payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        var decodedPayload = atob(payload);
+        return JSON.parse(decodedPayload);
+    }
+
+    // Получение user_id из JWT в cookies
+    function getUserIdFromJWT() {
+        var tokenCookie = document.cookie.split("; ").find(row => row.startsWith("jwt_token="));
+        if (tokenCookie) {
+            var jwt = tokenCookie.split("=")[1];
+            try {
+                var decoded = jwtDecode(jwt);
+                return decoded.user_id;
+            } catch(e) {
+                console.error("Failed to decode JWT:", e);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    // Функция для сжатия изображения
+    function compressImage(imageFile, callback) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var img = new Image();
+            img.onload = function() {
+                var MAX_WIDTH = 300;
+                var scaleSize = MAX_WIDTH / img.width;
+                var canvas = document.createElement('canvas');
+                canvas.width = MAX_WIDTH;
+                canvas.height = img.height * scaleSize;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                callback(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(imageFile);
+    }
+
+    // Отправка сообщения на сервер через WebSocket
+    function sendToServer(message) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(message));
+        }
+    }
+
+    // Показать модальное окно об ошибке сервера
+    function showServerErrorModal() {
+        serverErrorModal.style.display = "flex";
+    }
+    // Измененный обработчик открытия модального окна
+    chatHeader.addEventListener("click", function() {
+        if (activeChatId) {
+            const chat = chats.find(c => c.id === activeChatId);
+            if (chat) {
+                const targetUser = chat.users.find(u => u.id !== getUserIdFromJWT());
+                const blockBtn = document.getElementById("block-toggle-btn");
+                blockBtn.dataset.userId = targetUser.id; // Сохраняем userId
+                blockBtn.dataset.isBlocked = targetUser.isBlocked;
+                blockBtn.textContent = targetUser.isBlocked ? "Разблокировать" : "Заблокировать";
+
+                document.getElementById("chat-info-img").src = chat.userPhoto;
+                document.getElementById("chat-info-username").textContent = chat.username;
+                document.getElementById("chat-info-modal").style.display = "flex";
+            }
+        }
+    });
+
+    // Обработчик кнопки блокировки
+    document.getElementById("block-toggle-btn").addEventListener("click", async function() {
+        const button = this;
+        const userId = button.dataset.userId;
+        const isBlocked = button.dataset.isBlocked === "true";
+
+        const endpoint = isBlocked
+            ? 'http://localhost:3333/service/api/unblock'
+            : 'http://localhost:3333/service/api/block';
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getJwtToken()
+                },
+                body: JSON.stringify({ userId: userId })
+            });
+
+            if (response.ok) {
+                // Немедленно обновляем статус кнопки и UI
+                const newStatus = !isBlocked;
+                button.textContent = newStatus ? "Разблокировать" : "Заблокировать";
+                button.dataset.isBlocked = newStatus.toString();
+
+                // Обновляем статус чата и блокировку
+                await checkBlockStatus(); // Обновление input, send и т.п.
+                await loadChats();        // Обновление списка чатов
+            } else {
+                console.error('Ошибка при отправке запроса');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+        }
+    });
+
+
+
+    // Установка WebSocket соединения
+    function setupWebSocket() {
+        var userId = getUserIdFromJWT();
+        if (!userId) {
+            window.location.href = "/login";
+            return;
+        }
+
+        ws = new WebSocket("ws://localhost:3333/service/ws");
+
+        ws.onopen = function() {
+            console.log("WebSocket connected");
+            // Загружаем чаты и информацию о пользователе
+            loadChats();
+        };
+
+        ws.onmessage = function(event) {
+            var data = JSON.parse(event.data);
+            handleMessage(data);
+        };
+
+        ws.onerror = function(error) {
+            console.error("WebSocket error:", error);
+            showServerErrorModal();
+        };
+
+        ws.onclose = function() {
+            console.log("WebSocket disconnected");
+            showServerErrorModal();
+            // Пытаемся переподключиться через 5 секунд
+            setTimeout(setupWebSocket, 5000);
+        };
+    }
+    // Добавим переменную для хранения статуса блокировки
+    var currentBlockStatus = false;
+    // Проверка статуса блокировки при выборе чата
+    async function checkBlockStatus() {
+        if (!activeChatId) return;
+
+        try {
+            const response = await fetch(`http://localhost:3333/service/api/mutual-block?chatId=${activeChatId}`, {
+                headers: { 'Authorization': 'Bearer ' + getJwtToken() }
+            });
+            if (!response.ok) throw new Error('Failed to check block status');
+
+            const data = await response.json();
+            currentBlockStatus = data.isMutuallyBlocked;
+
+            const chatInput = document.getElementById('chat-input');
+            const blockedMsg = document.getElementById('blocked-message');
+            const msgInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-btn');
+            const blockBtn = document.getElementById("block-toggle-btn");
+
+            // Обновляем UI (поле ввода и сообщение)
+            if (data.isMutuallyBlocked) {
+                chatInput.classList.add('blocked');
+                blockedMsg.style.display = 'block';
+                msgInput.disabled = true;
+                sendButton.disabled = true;
+                msgInput.placeholder = 'Сообщения заблокированы';
+                blockBtn.textContent =  "Разблокировать";
+                blockBtn.dataset.isBlocked = "true";
+            } else {
+                chatInput.classList.remove('blocked');
+                blockedMsg.style.display = 'none';
+                msgInput.disabled = false;
+                sendButton.disabled = false;
+                msgInput.placeholder = 'Type a message...';
+                blockBtn.textContent =  "Заблокировать";
+                blockBtn.dataset.isBlocked = "false";
+            }
+
+
+        } catch (error) {
+            console.error('Error checking block status:', error);
+        }
+    }
+
+
+
+    // Загрузка списка чатов
+    function loadChats() {
+        fetch('http://localhost:3333/service/api/chats', {
+            headers: {
+                'Authorization': 'Bearer ' + getJwtToken()
+            },
+            credentials: "include"
+        })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                // Обрабатываем чаты напрямую здесь
+                if (data.info) {
+                    accountInfo = data.info;
+                    updateAccountInfo();
+                }
+                if (data.chats) {
+                    chats = data.chats.map(chat => ({
+                        id: chat.id,
+                        username: chat.name,
+                        userPhoto: chat.profile_picture,
+                        readed: chat.readed,
+                        isPrivate: chat.Private,
+                        users: chat.users
+                    }));
+                    updateChatList();
+                    updateChatHeader(); // Обновляем заголовок если есть активный чат
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching chats:', error);
+                if (error.message.includes('Unauthorized')) {
+                    window.location.href = "/login";
+                }
+            });
+    }
+
+    // Получение JWT токена из cookies
+    function getJwtToken() {
+        return document.cookie.split('jwt_token=')[1].split(';')[0];
+    }
+    // В секцию обработчиков событий
+    document.getElementById("logout-btn").addEventListener("click", function() {
+        // Удаляем куки с токеном
+        document.cookie = "jwt_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+        // Перенаправляем на страницу входа
+        window.location.href = "/login";
+    });
+    // Обработка входящих сообщений от сервера
+    function handleMessage(data) {
+        switch (data.method) {
+            case "RcvdMessage":
+                var msg = data.data;
+
+                // Если чат ещё не выбран, и это первое сообщение — установить activeChatId
+                if (!activeChatId) {
+                    activeChatId = msg.fromChatID;
+                }
+
+                if (msg.fromChatID === activeChatId) {
+                    messages.push({
+                        id: msg.id,
+                        UserFromID: msg.UserFromID,
+                        Message: msg.message,
+                        timestamp: msg.timestamp,
+                        isRead: msg.Readed
+                    });
+                    updateChatBody();
+                } else {
+                    // Увеличить счётчик непрочитанных сообщений для соответствующего чата
+                    unreadMessages[msg.fromChatID] = (unreadMessages[msg.fromChatID] || 0) + 1;
+                    updateChatList();
+                }
+                break;
+            default:
+                console.warn("Unknown method:", data.method);
+        }
+    }
+
+    function handleChatSelect(chatId) {
+        activeChatId = chatId;
+        checkBlockStatus();
+        
+        fetch(`http://localhost:3333/service/api/messages?chatId=${chatId}`, {
+            headers: { 'Authorization': 'Bearer ' + getJwtToken() }
+        })
+            .then(response => response.json())
+            .then(data => {
+                messages = data.messages.map(msg => ({
+                    id: msg.id,
+                    UserFromID: msg.from,
+                    Message: msg.message,
+                    timestamp: msg.timestamp,
+                    isRead: msg.readed
+                }));
+
+                updateChatBody();
+                updateChatHeader(); // Добавьте эту строку
+
+                // Помечаем как прочитанные
+                fetch(`http://localhost:3333/service/api/messages/read?chatId=${chatId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + getJwtToken() }
+                });
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+
+    async function handleSendMessage() {
+        const msg = messageInput.value.trim();
+        if (!msg) return;
+        console.log("activeChatId",activeChatId,"activeUserId",activeUserId,"msg",msg)
+
+        // Если чата нет - создаем структуру для нового чата
+        const messageData = activeChatId === -1
+            ? { method: "RcvdMessage", query: {chatId: -1, user2: activeUserId, message: msg } }
+            : { method: "RcvdMessage", query: { chatId: activeChatId, message: msg } };
+
+        sendToServer(messageData);
+        messageInput.value = "";
+    }
+
+
+
+    // Обработка выбора пользователя из поиска
+    function handleUserSelect(user) {
+        activeUserId = user.id;
+
+        // Обновляем заголовок чата сразу, даже если чата нет
+        document.getElementById("chat-title").textContent = user.username;
+        document.getElementById("chat-user-photo").src = user.profile_picture || "https://via.placeholder.com/40";
+
+        if (user.chat_id) {
+            activeChatId = user.chat_id;
+            handleChatSelect(activeChatId);
+        } else {
+            activeChatId = null;
+            messages = []; // Очищаем предыдущие сообщения
+            updateChatBody();
+        }
+
+        searchInput.value = "";
+        searchResults = [];
+        updateSearchResults();
+    }
+
+    // Обновление списка чатов
+    // Обновленная функция updateChatList
+    function updateChatList() {
+        chatListDiv.innerHTML = "";
+        chats.forEach(chat => {
+            const chatItem = document.createElement("div");
+            chatItem.className = "chat-item";
+
+            // Добавляем обработчик ко всему элементу
+            chatItem.addEventListener("click", () => handleChatSelect(chat.id));
+
+            // Аватар
+            const avatar = document.createElement("img");
+            avatar.className = "chat-avatar";
+            avatar.src = chat.userPhoto || "https://via.placeholder.com/40";
+
+            // Информация о чате
+            const chatInfo = document.createElement("div");
+            chatInfo.className = "chat-info";
+
+            const chatName = document.createElement("h3");
+            chatName.textContent = chat.username;
+
+            // Счетчик непрочитанных
+            if (unreadMessages[chat.id] > 0) {
+                const unread = document.createElement("span");
+                unread.className = "unread-count";
+                unread.textContent = unreadMessages[chat.id];
+                chatInfo.appendChild(unread);
+            }
+
+            // Собираем структуру
+            chatInfo.appendChild(chatName);
+            chatItem.appendChild(avatar);
+            chatItem.appendChild(chatInfo);
+            chatListDiv.appendChild(chatItem);
+        });
+    }
+
+    // Обновление заголовка чата
+    function updateChatHeader() {
+        if (!activeChatId) return;
+
+        const chat = chats.find(c => c.id === activeChatId);
+        if (chat) {
+            // Обновляем заголовок
+            document.getElementById("chat-title").textContent = chat.username;
+
+            // Обновляем аватар в заголовке
+            const headerAvatar = document.getElementById("chat-user-photo");
+            if (headerAvatar) {
+                headerAvatar.src = chat.userPhoto || "https://via.placeholder.com/40";
+            }
+        }
+    }
+    // Обновление области сообщений
+    function updateChatBody() {
+        chatBody.innerHTML = "";
+        const currentUserId = getUserIdFromJWT();
+
+        messages.forEach(message => {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message ${message.UserFromID === currentUserId ? "sent" : "received"}`;
+
+            const msgText = document.createElement("p");
+            msgText.className = "message-text";
+            msgText.textContent = message.Message;
+
+            const msgMeta = document.createElement("span");
+            msgMeta.className = "message-meta";
+            msgMeta.textContent = new Date(message.timestamp).toLocaleString("ru-RU");
+
+            // Добавляем статус прочтения для своих сообщений
+            if (message.UserFromID === currentUserId) {
+                const statusSpan = document.createElement("span");
+                statusSpan.className = `status-icon ${message.isRead ? "read" : "unread"}`;
+                statusSpan.textContent = message.isRead ? "✓✓" : "✓";
+                msgMeta.appendChild(statusSpan);
+            }
+
+            messageDiv.appendChild(msgText);
+            messageDiv.appendChild(msgMeta);
+            chatBody.appendChild(messageDiv);
+        });
+
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    // Обновление результатов поиска
+    function updateSearchResults() {
+        searchResultsDiv.innerHTML = "";
+        const currentUserId = getUserIdFromJWT();
+
+        searchResults
+            .filter(user => user.id.toString() !== currentUserId)
+            .forEach(user => {
+                const item = document.createElement("div");
+                item.className = "search-result-item";
+                item.innerHTML = `
+                <img src="${user.profile_picture || 'https://via.placeholder.com/40'}"
+                     class="search-result-avatar">
+                <span>${user.username}</span>
+                ${user.chat_id ? `<span class="existing-chat-badge">Чат существует</span>` : ''}
+            `;
+                item.addEventListener("click", () => handleUserSelect(user));
+                searchResultsDiv.appendChild(item);
+            });
+    }
+
+    // Обновление информации об аккаунте
+    function updateAccountInfo() {
+        accountStripImg.src = accountInfo.ProfilePicture || "https://via.placeholder.com/40";
+        accountStripName.textContent = accountInfo.UserName || "User";
+    }
+
+    // Инициализация при загрузке страницы
+    window.addEventListener("load", function() {
+        setupWebSocket();
+
+        // Обработчик отправки сообщения по Enter
+        messageInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                handleSendMessage();
+            }
+        });
+
+        // Обработчик кнопки отправки
+        sendBtn.addEventListener("click", handleSendMessage);
+
+        // Дебаунс для поиска пользователей
+        // Обработчик ввода поиска
+        let debounceTimer;
+        searchInput.addEventListener("input", function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const query = this.value.trim();
+                if (query) {
+                    fetch(`http://localhost:3333/service/api/users?username=${encodeURIComponent(query)}`, {
+                        headers: {
+                            'Authorization': 'Bearer ' + getJwtToken()
+                        },
+                        credentials: "include"
+                    })
+                        .then(response => response.json())
+                        .then(users => {
+                            searchResults = users; // Предполагаем, что сервер возвращает массив пользователей напрямую
+                            updateSearchResults();
+                        })
+                        .catch(error => console.error('Search error:', error));
+                } else {
+                    searchResults = [];
+                    updateSearchResults();
+                }
+            }, 500);
+        });
+
+        // Обработчик клика на заголовок чата
+        // chatHeader.addEventListener("click", function() {
+        //     if (activeChatId) {
+        //         const chat = chats.find(c => c.id === activeChatId);
+        //         if (chat) {
+        //             // Обновляем данные в модальном окне
+        //             document.getElementById("chat-info-img").src = chat.userPhoto || "https://via.placeholder.com/150";
+        //             document.getElementById("chat-info-username").textContent = chat.username;
+        //
+        //             // Показываем модальное окно
+        //             document.getElementById("chat-info-modal").style.display = "flex";
+        //         }
+        //     }
+        // });
+        // Обработчик закрытия модальных окон
+        chatInfoClose.addEventListener("click", function(e) {
+            e.stopPropagation();
+            chatInfoModal.style.display = "none";
+        });
+
+        accountInfoClose.addEventListener("click", function(e) {
+            e.stopPropagation();
+            accountInfoModal.style.display = "none";
+        });
+
+        // Обработчик клика на панель аккаунта
+        accountStrip.addEventListener("click", function() {
+            accountInfoImg.src = accountInfo.ProfilePicture || "https://via.placeholder.com/150";
+            document.getElementById("view-mail").textContent = accountInfo.Mail || "";
+            document.getElementById("view-username").textContent = accountInfo.UserName || "";
+            document.getElementById("view-bio").textContent = accountInfo.Biom || "";
+            document.getElementById("account-info-view").style.display = "block";
+            document.getElementById("account-info-edit").style.display = "none";
+            accountInfoModal.style.display = "flex";
+        });
+
+        // Обработчики редактирования профиля
+        document.getElementById("edit-profile-btn").addEventListener("click", function() {
+            document.getElementById("account-info-view").style.display = "none";
+            document.getElementById("account-info-edit").style.display = "block";
+            document.getElementById("edit-mail").value = accountInfo.Mail || "";
+            document.getElementById("edit-username").value = accountInfo.UserName || "";
+            document.getElementById("edit-bio").value = accountInfo.Biom || "";
+        });
+
+        document.getElementById("cancel-edit-btn").addEventListener("click", function() {
+            document.getElementById("account-info-view").style.display = "block";
+            document.getElementById("account-info-edit").style.display = "none";
+        });
+
+        document.getElementById("save-profile-btn").addEventListener("click", function() {
+            const updated = {
+                Mail: document.getElementById("edit-mail").value.trim(),
+                UserName: document.getElementById("edit-username").value.trim(),
+                Biom: document.getElementById("edit-bio").value.trim()
+            };
+
+            fetch('http://localhost:3333/service/api/profile', {
+                method: 'PUT',
+                credentials: "include",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getJwtToken()
+                },
+                body: JSON.stringify(updated)
+            })
+                .then(response => {
+                    // Проверяем статус и наличие контента
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+
+                    // Проверяем, есть ли тело ответа
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    }
+                    return null; // Если ответ пустой
+                })
+                .then(data => {
+                    accountInfo = {...accountInfo, ...updated};
+                    updateAccountInfo();
+                    accountInfoModal.style.display = "none";
+
+                    // Обновляем поля в режиме просмотра
+                    document.getElementById("view-mail").textContent = updated.Mail;
+                    document.getElementById("view-username").textContent = updated.UserName;
+                    document.getElementById("view-bio").textContent = updated.Biom;
+                })
+                .catch(error => {
+                    console.error('Error updating profile:', error);
+                    alert("Не удалось сохранить изменения. Проверьте введенные данные.");
+                });
+        });
+
+        // Обработчик смены фото профиля
+        document.getElementById("change-photo-btn").addEventListener("click", function() {
+            document.getElementById("file-input").click();
+        });
+
+        document.getElementById("file-input").addEventListener("change", function(e) {
+            var file = e.target.files[0];
+            if (file) {
+                compressImage(file, function(compressedDataUrl) {
+                    fetch('http://localhost:3333/service/api/profile/photo', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + getJwtToken()
+                        },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            imageData: compressedDataUrl
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.ProfilePicture) {
+                                accountInfo.ProfilePicture = data.ProfilePicture;
+                                updateAccountInfo();
+                            }
+                        })
+                        .catch(error => console.error('Error updating profile picture:', error));
+                });
+            }
+        });
+    });
+
+    // Обработчик закрытия модального окна ошибки сервера
+    document.getElementById("server-error-close").addEventListener("click", function() {
+        serverErrorModal.style.display = "none";
+    });
+
+</script>
+</body>
+</html>

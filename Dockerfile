@@ -1,35 +1,32 @@
 # Этап сборки
-FROM golang:1.23.0 AS builder
+FROM golang:1.23 AS builder
 
 WORKDIR /app
 
-# Копируем файлы модулей и скачиваем зависимости
+# Копируем go.mod и go.sum, скачиваем зависимости
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Копируем исходный код и .env
+# Копируем весь исходный код
 COPY . .
 
-# Собираем бинарный файл (статически слинкованный)
-RUN CGO_ENABLED=0 GOOS=linux go build -o app .
+# Переходим в папку server и собираем приложение
+WORKDIR /app/server
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/app .
 
-# Финальный образ
+# Финальный минимальный образ
 FROM alpine:latest
 
 WORKDIR /app
 
-# Копируем бинарный файл из билд-стадии
+# Копируем скомпилированный бинарник из билдера
 COPY --from=builder /app/app .
 
-# При необходимости копируем .env (для godotenv.Load)
-COPY .env .
-
-# Копируем скрипт entrypoint
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Копируем .env при необходимости (если он используется внутри приложения)
+COPY .env .  
 
 # Делаем бинарный файл исполняемым
 RUN chmod +x app
 
-# Используем наш entrypoint, который устанавливает переменную SERVICE_ADDRES
-ENTRYPOINT ["/entrypoint.sh"]
+# Указываем команду по умолчанию
+ENTRYPOINT ["./app"]

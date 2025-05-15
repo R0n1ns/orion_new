@@ -1,0 +1,20 @@
+FROM golang:1.23 AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# Используем уникальное имя для бинарника
+RUN CGO_ENABLED=0 GOOS=linux go build -o frontclient_app ./frontclient/mainFront.go
+
+FROM alpine:latest
+WORKDIR /app
+
+COPY --from=builder /app/frontclient_app /app/frontclient
+COPY --from=builder /app/frontclient /app
+
+EXPOSE 3333
+CMD ["/app/frontclient"]
