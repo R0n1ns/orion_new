@@ -177,18 +177,32 @@ func GetChanMassages(chanid uint) ([]models.Message, error) {
 //   - message: текст сообщения.
 //
 // В случае ошибки при сохранении сообщения в базу данных, ошибка логируется.
-func AddMessage(froid uint, chaid uint, message string) {
+func AddMessage(froid uint, chaid uint, message string) error {
+	// Проверяем, является ли чат личным
+	var chat models.Channel
+	DB.Preload("Users").First(&chat, chaid)
+
+	if chat.IsPrivate && len(chat.Users) == 2 {
+		var otherUserID uint
+		for _, u := range chat.Users {
+			if u.ID != froid {
+				otherUserID = u.ID
+				break
+			}
+		}
+
+		if IsBlocked(froid, otherUserID) {
+			return fmt.Errorf("user is blocked")
+		}
+	}
+
 	mess := models.Message{
 		ChannelID: chaid,
 		UserID:    froid,
 		Content:   message,
 		Timestamp: time.Now(),
 	}
-	err := DB.Create(&mess).Error
-
-	if err != nil {
-		log.Printf("Some error occured. Err: %s", err)
-	}
+	return DB.Create(&mess).Error
 }
 
 // AddHexPhoto обновляет фотографию профиля пользователя.
@@ -228,7 +242,7 @@ func CreateChat(userID1, userID2 uint, channelName string) (*models.Channel, err
 	}
 
 	// Создаём уникальное имя для канала
-	//channelName := fmt.Sprintf("chat_%d_%d", userID1, userID2)
+	channelName = fmt.Sprintf("chat_%d_%d", userID1, userID2)
 
 	// Проверяем, существует ли уже такой чат
 	var existingChannel models.Channel
@@ -332,4 +346,48 @@ func UpdateUser(userID uint, Mail, UserName, Bio string) error {
 		return err.Error
 	}
 	return nil
+}
+
+// BlockUser добавляет блокировку пользователя
+func BlockUser(blockerID, blockedID uint) error {
+	blocker := models.User{ID: blockerID}
+	blocked := models.User{ID: blockedID}
+	err := DB.Model(&blocker).Association("BlockedUsers").Append(&blocked)
+	return err
+}
+
+// UnblockUser удаляет блокировку
+func UnblockUser(blockerID, blockedID uint) error {
+	blocker := models.User{ID: blockerID}
+	blocked := models.User{ID: blockedID}
+	err := DB.Model(&blocker).Association("BlockedUsers").Delete(&blocked)
+	return err
+}
+
+// IsBlocked проверяет, заблокированы ли пользователи друг другом
+func IsBlocked(user1ID, user2ID uint) bool {
+	var count int64
+	DB.Table("user_blocks").
+		Where("(blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)",
+			user1ID, user2ID, user2ID, user1ID).
+		Count(&count)
+	return count > 0
+}
+
+// CheckIfBlocked проверяет взаимную блокировку в чате
+func CheckIfBlocked(chatID uint, userID uint) (bool, error) {
+	users, err := GetUsersInChat(chatID)
+	if err != nil {
+		return false, err
+	}
+
+	var otherUserID uint
+	for _, u := range users {
+		if u.ID != userID {
+			otherUserID = u.ID
+			break
+		}
+	}
+
+	return IsBlocked(userID, otherUserID) || IsBlocked(otherUserID, userID), nil
 }

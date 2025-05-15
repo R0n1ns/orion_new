@@ -31,8 +31,9 @@ type User struct {
 	ProfilePicture string    `gorm:"type:text;default:''"`         // Ссылка на картинку профиля
 	Bio            string    `gorm:"type:varchar(255);default:''"` // Био пользователя
 
-	Channels []Channel `gorm:"many2many:user_channels;"` // Множество каналов, в которых состоит пользователь
-	Statuses []Status  `gorm:"many2many:user_statuses;"` // Множество статусов пользователя в каналах
+	Channels     []Channel `gorm:"many2many:user_channels;"` // Множество каналов, в которых состоит пользователь
+	Statuses     []Status  `gorm:"many2many:user_statuses;"` // Множество статусов пользователя в каналах
+	BlockedUsers []User    `gorm:"many2many:user_blocks;joinForeignKey:BlockedID;joinReferences:BlockerID"`
 }
 
 // Channel представляет модель канала (чата) в системе.

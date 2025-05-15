@@ -19,7 +19,7 @@ type Querys struct {
 //
 //	{ "method": "RcvdMessage", "query": { "chatId": 1, "message": "Текст сообщения" } }
 type RcvdMessage struct {
-	ChatId  uint   `json:"chatId"`
+	ChatId  int    `json:"chatId"`
 	Message string `json:"message"`
 }
 

@@ -30,20 +30,37 @@ func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chatsJSON := make([]map[string]interface{}, len(chats))
-	for i, chat := range chats {
+	chatsJSON := make([]map[string]interface{}, 0)
+
+	for _, chat := range chats {
 		users, _ := manager.GetUsersInChat(chat.ID)
+
+		// Формируем список пользователей
+		userList := make([]map[string]interface{}, 0)
+		var chatName string
+		var profilePicture string
 		for _, user := range users {
+			userList = append(userList, map[string]interface{}{
+				"id":       user.ID,
+				"username": user.UserName,
+			})
+
 			if user.ID != userID {
-				chatsJSON[i] = map[string]interface{}{
-					"id":              chat.ID,
-					"name":            user.UserName,
-					"readed":          manager.IfReadedChat(chat.ID, userID),
-					"Private":         chat.IsPrivate,
-					"profile_picture": minio.GetPhoto(user.ProfilePicture),
-				}
+				chatName = user.UserName
+				profilePicture = minio.GetPhoto(user.ProfilePicture)
 			}
 		}
+
+		chatJSON := map[string]interface{}{
+			"id":              chat.ID,
+			"name":            chatName,
+			"readed":          manager.IfReadedChat(chat.ID, userID),
+			"Private":         chat.IsPrivate,
+			"profile_picture": profilePicture,
+			"users":           userList,
+		}
+
+		chatsJSON = append(chatsJSON, chatJSON)
 	}
 
 	user := manager.GetUserByID(userID)
@@ -115,51 +132,45 @@ func CreateChatHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetChatMessagesHandler возвращает все сообщения в чате.
 func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
-	userID, err := jwt.ExtractJWT(w, r)
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+	//userID, err := jwt.ExtractJWT(w, r)
+	//if err != nil {
+	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
 	chatIDStr := r.URL.Query().Get("chatId")
 	chatID, err := strconv.Atoi(chatIDStr)
 
 	if err != nil || chatID == -1 {
+		messagesJSON := []map[string]interface{}{}
 
-		// Получаем ID второго участника из запроса
-		otherIDStr := r.URL.Query().Get("otherUserId")
-		otherID, _ := strconv.Atoi(otherIDStr)
-		log.Println("userID", userID)
-		log.Println("otherID", otherID)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"chatId":   chatID,
+			"messages": messagesJSON,
+		})
+	} else {
 
-		newChat, err := manager.CreateChat(userID, uint(otherID), "test")
+		msgs, err := manager.GetChanMassages(uint(chatID))
 		if err != nil {
-			http.Error(w, "не удалось создать чат", 500)
+			http.Error(w, "cannot get messages", http.StatusInternalServerError)
 			return
 		}
 
-		chatID = int(newChat.ID)
-	}
-
-	msgs, err := manager.GetChanMassages(uint(chatID))
-	if err != nil {
-		http.Error(w, "cannot get messages", http.StatusInternalServerError)
-		return
-	}
-
-	messagesJSON := []map[string]interface{}{}
-	for _, m := range msgs {
-		messagesJSON = append(messagesJSON, map[string]interface{}{
-			"id":        m.ID,
-			"from":      m.UserID,
-			"message":   m.Content,
-			"timestamp": m.Timestamp.Format(time.RFC3339),
-			"readed":    m.Readed,
+		messagesJSON := []map[string]interface{}{}
+		for _, m := range msgs {
+			messagesJSON = append(messagesJSON, map[string]interface{}{
+				"id":        m.ID,
+				"from":      m.UserID,
+				"message":   m.Content,
+				"timestamp": m.Timestamp.Format(time.RFC3339),
+				"readed":    m.Readed,
+			})
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"chatId":   chatID,
+			"messages": messagesJSON,
 		})
 	}
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"chatId":   chatID,
-		"messages": messagesJSON,
-	})
+
 }
 
 // MarkMessagesReadHandler помечает сообщения как прочитанные.
@@ -246,4 +257,132 @@ func UploadProfilePictureHandler(w http.ResponseWriter, r *http.Request) {
 		"ProfilePicture": "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(imageBytes),
 	}
 	json.NewEncoder(w).Encode(resp)
+}
+
+func BlockUserHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := jwt.ExtractJWT(w, r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	type Request struct {
+		UserID string `json:"userId"` // строка
+	}
+	var req Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	parsedID, err := strconv.ParseUint(req.UserID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+	//log.Println(json.NewDecoder(r.Body))
+
+	if err := manager.BlockUser(userID, uint(parsedID)); err != nil {
+		http.Error(w, "Block failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func UnblockUserHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := jwt.ExtractJWT(w, r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	type Request struct {
+		UserID string `json:"userId"` // строка
+	}
+	var req Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	parsedID, err := strconv.ParseUint(req.UserID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+	if err := manager.UnblockUser(userID, uint(parsedID)); err != nil {
+		http.Error(w, "Unblock failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// CheckUserBlockedHandler возвращает статус блокировки пользователя (поле IsBlocked)
+func CheckUserBlockedHandler(w http.ResponseWriter, r *http.Request) {
+	// Получаем ID целевого пользователя из query-параметра
+	targetUserIDStr := r.URL.Query().Get("userId")
+	targetUserID, err := strconv.Atoi(targetUserIDStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	// Получаем информацию о пользователе
+	targetUser := manager.GetUserByID(uint(targetUserID))
+	if targetUser.ID == 0 {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Возвращаем статус блокировки
+	json.NewEncoder(w).Encode(map[string]bool{
+		"isBlocked": targetUser.IsBlocked,
+	})
+}
+
+// CheckMutualBlockHandler проверяет, заблокированы ли пользователи друг другом
+func CheckMutualBlockHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := jwt.ExtractJWT(w, r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// 1. Получаем chatId из запроса
+	chatIDStr := r.URL.Query().Get("chatId")
+	log.Println("chatIDStr", chatIDStr)
+	chatID, err := strconv.Atoi(chatIDStr)
+	if err != nil || chatID <= 0 {
+		http.Error(w, "Invalid chatId", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Получаем пользователей в чате
+	users, err := manager.GetUsersInChat(uint(chatID))
+	if err != nil || len(users) != 2 {
+		http.Error(w, "Chat not found or invalid", http.StatusBadRequest)
+		return
+	}
+
+	// 3. Определяем ID другого пользователя
+	var targetUserID uint
+	for _, user := range users {
+		if user.ID != userID {
+			targetUserID = user.ID
+			break
+		}
+	}
+
+	if targetUserID == 0 {
+		http.Error(w, "User not found in chat", http.StatusBadRequest)
+		return
+	}
+
+	// 4. Проверяем взаимную блокировку
+	isBlockedByCurrent := manager.IsBlocked(userID, targetUserID)
+	isBlockedByTarget := manager.IsBlocked(targetUserID, userID)
+
+	json.NewEncoder(w).Encode(map[string]bool{
+		"isMutuallyBlocked": isBlockedByCurrent || isBlockedByTarget,
+	})
 }

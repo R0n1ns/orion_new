@@ -247,6 +247,40 @@
             border: 1px solid #ddd;
             border-radius: 12px;
         }
+        /* В разделе стилей для account-strip */
+        .account-strip {
+            /* Существующие стили */
+            gap: 10px; /* Добавляем отступ между элементами */
+        }
+
+        #logout-btn {
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
+        }
+
+        #logout-btn:hover {
+            background-color: rgba(255, 0, 0, 0.8);
+        }
+
+        .blocked-message {
+            color: #ff4444;
+            font-size: 0.9em;
+            margin: 8px 0;
+            padding: 4px;
+            text-align: center;
+            background: #ffeeee;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .blocked .message-input {
+            background-color: #fff0f0 !important;
+            border-color: #ffcccc !important;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -275,7 +309,8 @@
         <div class="chat-body" id="chat-body">
             <!-- Здесь будут отображаться сообщения -->
         </div>
-        <div class="chat-input">
+        <div class="chat-input" id="chat-input">
+            <div class="blocked-message" id="blocked-message">Вы не можете отправлять сообщения: пользователи заблокированы</div>
             <input type="text" class="message-input" placeholder="Type a message..." id="message-input">
             <button class="input-btn send-btn" id="send-btn">Send</button>
         </div>
@@ -293,6 +328,7 @@
         <div id="chat-info-fields" style="text-align: center;">
             <p><strong>Имя пользователя:</strong> <span id="chat-info-username"></span></p>
             <p><strong>Статус:</strong> <span id="chat-info-status">В сети</span></p>
+            <button class="btn-primary" id="block-toggle-btn">Заблокировать</button>
         </div>
     </div>
 </div>
@@ -335,8 +371,11 @@
 <div class="account-strip" id="account-strip">
     <img src="" alt="Profile" id="account-strip-img" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
     <span id="account-strip-name" style="margin-left: 10px;">Аккаунт</span>
+    <!-- Добавляем кнопку выхода -->
+    <button id="logout-btn" style="margin-left: auto; background: none; border: none; color: #ff4444; cursor: pointer;">
+        Выйти
+    </button>
 </div>
-
 <!-- Модальное окно с сообщением о проблемах с сервером по WebSocket -->
 <div class="popup-overlay" id="server-error-modal">
     <div class="popup-content">
@@ -379,6 +418,7 @@
     var accountStripName = document.getElementById("account-strip-name");
     var serverErrorModal = document.getElementById("server-error-modal");
     let activeUserId = null;
+    
     // Функция для декодирования JWT
     function jwtDecode(token) {
         var parts = token.split('.');
@@ -435,6 +475,62 @@
     function showServerErrorModal() {
         serverErrorModal.style.display = "flex";
     }
+    // Измененный обработчик открытия модального окна
+    chatHeader.addEventListener("click", function() {
+        if (activeChatId) {
+            const chat = chats.find(c => c.id === activeChatId);
+            if (chat) {
+                const targetUser = chat.users.find(u => u.id !== getUserIdFromJWT());
+                const blockBtn = document.getElementById("block-toggle-btn");
+                blockBtn.dataset.userId = targetUser.id; // Сохраняем userId
+                blockBtn.dataset.isBlocked = targetUser.isBlocked;
+                blockBtn.textContent = targetUser.isBlocked ? "Разблокировать" : "Заблокировать";
+
+                document.getElementById("chat-info-img").src = chat.userPhoto;
+                document.getElementById("chat-info-username").textContent = chat.username;
+                document.getElementById("chat-info-modal").style.display = "flex";
+            }
+        }
+    });
+
+    // Обработчик кнопки блокировки
+    document.getElementById("block-toggle-btn").addEventListener("click", async function() {
+        const button = this;
+        const userId = button.dataset.userId;
+        const isBlocked = button.dataset.isBlocked === "true";
+
+        const endpoint = isBlocked
+            ? 'http://localhost:3333/service/api/unblock'
+            : 'http://localhost:3333/service/api/block';
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getJwtToken()
+                },
+                body: JSON.stringify({ userId: userId })
+            });
+
+            if (response.ok) {
+                // Немедленно обновляем статус кнопки и UI
+                const newStatus = !isBlocked;
+                button.textContent = newStatus ? "Разблокировать" : "Заблокировать";
+                button.dataset.isBlocked = newStatus.toString();
+
+                // Обновляем статус чата и блокировку
+                await checkBlockStatus(); // Обновление input, send и т.п.
+                await loadChats();        // Обновление списка чатов
+            } else {
+                console.error('Ошибка при отправке запроса');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+        }
+    });
+
+
 
     // Установка WebSocket соединения
     function setupWebSocket() {
@@ -469,6 +565,53 @@
             setTimeout(setupWebSocket, 5000);
         };
     }
+    // Добавим переменную для хранения статуса блокировки
+    var currentBlockStatus = false;
+    // Проверка статуса блокировки при выборе чата
+    async function checkBlockStatus() {
+        if (!activeChatId) return;
+
+        try {
+            const response = await fetch(`http://localhost:3333/service/api/mutual-block?chatId=${activeChatId}`, {
+                headers: { 'Authorization': 'Bearer ' + getJwtToken() }
+            });
+            if (!response.ok) throw new Error('Failed to check block status');
+
+            const data = await response.json();
+            currentBlockStatus = data.isMutuallyBlocked;
+
+            const chatInput = document.getElementById('chat-input');
+            const blockedMsg = document.getElementById('blocked-message');
+            const msgInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-btn');
+            const blockBtn = document.getElementById("block-toggle-btn");
+
+            // Обновляем UI (поле ввода и сообщение)
+            if (data.isMutuallyBlocked) {
+                chatInput.classList.add('blocked');
+                blockedMsg.style.display = 'block';
+                msgInput.disabled = true;
+                sendButton.disabled = true;
+                msgInput.placeholder = 'Сообщения заблокированы';
+                blockBtn.textContent =  "Разблокировать";
+                blockBtn.dataset.isBlocked = "true";
+            } else {
+                chatInput.classList.remove('blocked');
+                blockedMsg.style.display = 'none';
+                msgInput.disabled = false;
+                sendButton.disabled = false;
+                msgInput.placeholder = 'Type a message...';
+                blockBtn.textContent =  "Заблокировать";
+                blockBtn.dataset.isBlocked = "false";
+            }
+
+
+        } catch (error) {
+            console.error('Error checking block status:', error);
+        }
+    }
+
+
 
     // Загрузка списка чатов
     function loadChats() {
@@ -491,10 +634,11 @@
                 if (data.chats) {
                     chats = data.chats.map(chat => ({
                         id: chat.id,
-                        username: chat.name,         // Используем поле name из ответа сервера
-                        userPhoto: chat.profile_picture, // Используем поле profile_picture
+                        username: chat.name,
+                        userPhoto: chat.profile_picture,
                         readed: chat.readed,
-                        isPrivate: chat.Private
+                        isPrivate: chat.Private,
+                        users: chat.users
                     }));
                     updateChatList();
                     updateChatHeader(); // Обновляем заголовок если есть активный чат
@@ -512,7 +656,13 @@
     function getJwtToken() {
         return document.cookie.split('jwt_token=')[1].split(';')[0];
     }
-
+    // В секцию обработчиков событий
+    document.getElementById("logout-btn").addEventListener("click", function() {
+        // Удаляем куки с токеном
+        document.cookie = "jwt_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+        // Перенаправляем на страницу входа
+        window.location.href = "/login";
+    });
     // Обработка входящих сообщений от сервера
     function handleMessage(data) {
         switch (data.method) {
@@ -546,7 +696,8 @@
 
     function handleChatSelect(chatId) {
         activeChatId = chatId;
-
+        checkBlockStatus();
+        
         fetch(`http://localhost:3333/service/api/messages?chatId=${chatId}`, {
             headers: { 'Authorization': 'Bearer ' + getJwtToken() }
         })
@@ -575,22 +726,16 @@
 
     async function handleSendMessage() {
         const msg = messageInput.value.trim();
-        if (!msg || (!activeChatId && !activeUserId)) return;
+        if (!msg) return;
+        console.log("activeChatId",activeChatId,"activeUserId",activeUserId,"msg",msg)
 
-        const messageData = activeChatId
-            ? {
-                method: "RcvdMessage",
-                query: { chatId: activeChatId, message: msg }
-            }
-            : {
-                method: "RcvdMessage",
-                query: { user2: activeUserId, message: msg }
-            };
+        // Если чата нет - создаем структуру для нового чата
+        const messageData = activeChatId === -1
+            ? { method: "RcvdMessage", query: {chatId: -1, user2: activeUserId, message: msg } }
+            : { method: "RcvdMessage", query: { chatId: activeChatId, message: msg } };
 
         sendToServer(messageData);
-        messageInput.value = ""; // Очищаем поле ввода
-
-        // УБРАНО РУЧНОЕ ДОБАВЛЕНИЕ В messages
+        messageInput.value = "";
     }
 
 
@@ -599,12 +744,17 @@
     function handleUserSelect(user) {
         activeUserId = user.id;
 
+        // Обновляем заголовок чата сразу, даже если чата нет
+        document.getElementById("chat-title").textContent = user.username;
+        document.getElementById("chat-user-photo").src = user.profile_picture || "https://via.placeholder.com/40";
+
         if (user.chat_id) {
             activeChatId = user.chat_id;
             handleChatSelect(activeChatId);
         } else {
-            activeChatId = null; // Чата пока нет, создадим при отправке первого сообщения
-            clearChatBody(); // можно очистить чат, если выбран новый пользователь
+            activeChatId = null;
+            messages = []; // Очищаем предыдущие сообщения
+            updateChatBody();
         }
 
         searchInput.value = "";
@@ -769,19 +919,19 @@
         });
 
         // Обработчик клика на заголовок чата
-        chatHeader.addEventListener("click", function() {
-            if (activeChatId) {
-                const chat = chats.find(c => c.id === activeChatId);
-                if (chat) {
-                    // Обновляем данные в модальном окне
-                    document.getElementById("chat-info-img").src = chat.userPhoto || "https://via.placeholder.com/150";
-                    document.getElementById("chat-info-username").textContent = chat.username;
-
-                    // Показываем модальное окно
-                    document.getElementById("chat-info-modal").style.display = "flex";
-                }
-            }
-        });
+        // chatHeader.addEventListener("click", function() {
+        //     if (activeChatId) {
+        //         const chat = chats.find(c => c.id === activeChatId);
+        //         if (chat) {
+        //             // Обновляем данные в модальном окне
+        //             document.getElementById("chat-info-img").src = chat.userPhoto || "https://via.placeholder.com/150";
+        //             document.getElementById("chat-info-username").textContent = chat.username;
+        //
+        //             // Показываем модальное окно
+        //             document.getElementById("chat-info-modal").style.display = "flex";
+        //         }
+        //     }
+        // });
         // Обработчик закрытия модальных окон
         chatInfoClose.addEventListener("click", function(e) {
             e.stopPropagation();

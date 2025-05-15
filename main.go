@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/gorilla/mux"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	"io"
 	"log"
 	"net/http"
 	"orion/data/manager"
@@ -37,9 +39,24 @@ func init() {
 // loggingMiddleware логирует метод запроса, URI и IP-адрес клиента.
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.RequestURI != "/service/metrics" {
-			log.Printf("Запрос: %s %s, IP: %s", r.Method, r.RequestURI, r.RemoteAddr)
+		if r.URL.Path != "/service/metrics" {
+			// Читаем тело запроса
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				log.Printf("Ошибка чтения тела запроса: %v", err)
+			} else {
+				// Восстанавливаем тело запроса для последующих обработчиков
+				r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			}
+
+			// Логируем информацию
+			log.Printf("Запрос: %s %s, Body: %s",
+				r.Method,
+				r.URL.RequestURI(),
+				string(bodyBytes))
 		}
+
+		// Передаем управление следующему обработчику
 		next.ServeHTTP(w, r)
 	})
 }
@@ -57,6 +74,7 @@ Package main является точкой входа в приложение.
 */
 // main инициализирует маршруты, применяет CORS middleware и запускает HTTP-сервер.
 func main() {
+
 	port, _ := strconv.Atoi(os.Getenv("SERVICE_PORT"))
 	addres := os.Getenv("SERVICE_ADDRES")
 	serv_name := os.Getenv("SERVICE_NAME")
@@ -89,7 +107,10 @@ func main() {
 	serviceRouter.HandleFunc("/api/messages/read", handlers.MarkMessagesReadHandler).Methods("POST", "PUT")
 	serviceRouter.HandleFunc("/api/profile", handlers.UpdateProfileHandler).Methods("PUT")
 	serviceRouter.HandleFunc("/api/profile/photo", handlers.UploadProfilePictureHandler).Methods("POST")
-
+	serviceRouter.HandleFunc("/api/block", handlers.BlockUserHandler).Methods("POST")
+	serviceRouter.HandleFunc("/api/unblock", handlers.UnblockUserHandler).Methods("POST")
+	serviceRouter.HandleFunc("/api/block-status", handlers.CheckUserBlockedHandler).Methods("GET")
+	serviceRouter.HandleFunc("/api/mutual-block", handlers.CheckMutualBlockHandler).Methods("GET")
 	// Метрики Prometheus
 	serviceRouter.Handle("/metrics", promhttp.Handler())
 

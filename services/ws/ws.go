@@ -90,6 +90,7 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			log.Println("Unsupported method:", dt.Method)
 			continue
 		}
+		// Добавьте проверку блокировки
 
 		dat, ok := dt.Query.(map[string]interface{})
 		if !ok {
@@ -98,18 +99,19 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Безопасное извлечение и проверка chatId
-		var chatId uint
+		var chatId int
 		if chatRaw, ok := dat["chatId"]; ok {
 			if chatFloat, ok := chatRaw.(float64); ok && chatFloat > 0 {
-				chatId = uint(chatFloat)
+				chatId = int(chatFloat)
 			}
 		}
 
 		messageText, _ := dat["message"].(string)
 		msg := RcvdMessage{ChatId: chatId, Message: messageText}
-
+		var NewChatId uint
 		// Если chatId не передан — создаём новый чат
-		if chatId == 0 {
+		if chatId == 0 || chatId == -1 {
+
 			user2Raw, ok := dat["user2"]
 			if !ok {
 				log.Println("user2 not provided for new chat creation")
@@ -122,12 +124,32 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 				log.Println("CreateChat error:", err)
 				continue
 			}
-			chatId = newChat.ID
+			NewChatId = newChat.ID
 			msg.ChatId = chatId
+		} else {
+			NewChatId = uint(chatId)
+		}
+		// Добавьте проверку блокировки
+		users, err := manager.GetUsersInChat(NewChatId)
+		if err != nil {
+			log.Println("GetUsersInChat error:", err)
+			continue
 		}
 
+		var otherUserID uint
+		for _, user := range users {
+			if user.ID != userID {
+				otherUserID = user.ID
+				break
+			}
+		}
+
+		if manager.IsBlocked(userID, otherUserID) {
+			log.Printf("Message blocked: users %d and %d are blocked", userID, otherUserID)
+			continue
+		}
 		// Добавляем сообщение
-		manager.AddMessage(userID, chatId, msg.Message)
+		manager.AddMessage(userID, NewChatId, msg.Message)
 
 		// Формируем ответ
 		resp := map[string]interface{}{
@@ -139,12 +161,6 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 				"timestamp":  time.Now().Format(time.RFC3339),
 				"Readed":     false,
 			},
-		}
-
-		users, err := manager.GetUsersInChat(chatId)
-		if err != nil {
-			log.Println("GetUsersInChat error:", err)
-			continue
 		}
 
 		for _, user := range users {

@@ -115,5 +115,5 @@ volumes:
 
 #docker network connect localNetwork orion-server-app-1
 #docker network connect serversNetwork orion-server-app-1
-#docker network connect serversNetwork orion-server-app2-1
-#docker network connect localNetwork orion-server-app2-1
+#docker network connect serversNetwork orion-frontclient-1
+#docker network connect localNetwork orion-frontclient-1
