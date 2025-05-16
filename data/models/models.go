@@ -30,6 +30,7 @@ type User struct {
 	LastOnline     time.Time `gorm:"not null"`                     // Последнее время активности пользователя
 	ProfilePicture string    `gorm:"type:text;default:''"`         // Ссылка на картинку профиля
 	Bio            string    `gorm:"type:varchar(255);default:''"` // Био пользователя
+	BlockingUpTo   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
 
 	Channels     []Channel `gorm:"many2many:user_channels;"` // Множество каналов, в которых состоит пользователь
 	Statuses     []Status  `gorm:"many2many:user_statuses;"` // Множество статусов пользователя в каналах

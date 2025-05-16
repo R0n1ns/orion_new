@@ -11,6 +11,7 @@ import (
 	"orion/data/manager"
 	"orion/server/services/jwt"
 	"orion/server/services/minio"
+	"orion/server/services/ws"
 	"strconv"
 	"strings"
 	"time"
@@ -34,30 +35,44 @@ func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
 
 	for _, chat := range chats {
 		users, _ := manager.GetUsersInChat(chat.ID)
-
-		// Формируем список пользователей
-		userList := make([]map[string]interface{}, 0)
 		var chatName string
 		var profilePicture string
+		var otherUserID uint
+		var lastOnline time.Time
+		var isOnline bool
+
+		// Формируем расширенную информацию о пользователях
+		userList := make([]map[string]interface{}, 0)
 		for _, user := range users {
-			userList = append(userList, map[string]interface{}{
-				"id":       user.ID,
-				"username": user.UserName,
-			})
+			userData := map[string]interface{}{
+				"id":          user.ID,
+				"username":    user.UserName,
+				"is_online":   ws.WSmanager.Connections[user.ID] != nil,
+				"last_online": user.LastOnline.Format(time.RFC3339),
+			}
 
 			if user.ID != userID {
 				chatName = user.UserName
 				profilePicture = minio.GetPhoto(user.ProfilePicture)
+				otherUserID = user.ID
+				lastOnline = user.LastOnline
+				isOnline = ws.WSmanager.Connections[user.ID] != nil
 			}
+
+			userList = append(userList, userData)
 		}
 
 		chatJSON := map[string]interface{}{
 			"id":              chat.ID,
 			"name":            chatName,
 			"readed":          manager.IfReadedChat(chat.ID, userID),
-			"Private":         chat.IsPrivate,
+			"is_private":      chat.IsPrivate,
 			"profile_picture": profilePicture,
 			"users":           userList,
+			"other_user_id":   otherUserID,
+			"last_activity":   lastOnline.Format(time.RFC3339),
+			"is_online":       isOnline,
+			"unread_count":    manager.GetUnreadCount(chat.ID, userID),
 		}
 
 		chatsJSON = append(chatsJSON, chatJSON)
@@ -71,11 +86,12 @@ func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
 			"Mail":           user.Mail,
 			"UserName":       user.UserName,
 			"IsBlocked":      user.IsBlocked,
-			"LastOnline":     user.LastOnline,
+			"LastOnline":     user.LastOnline.Format(time.RFC3339),
 			"ProfilePicture": minio.GetPhoto(user.ProfilePicture),
 			"Biom":           user.Bio,
 		},
 	}
+
 	json.NewEncoder(w).Encode(resp)
 }
 
@@ -384,5 +400,25 @@ func CheckMutualBlockHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(map[string]bool{
 		"isMutuallyBlocked": isBlockedByCurrent || isBlockedByTarget,
+	})
+}
+
+// OnlineStatusHandler возвращает статус пользователя
+func OnlineStatusHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := jwt.ExtractJWT(w, r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	//targetUserIDStr := r.URL.Query().Get("userId")
+	//targetUserID, _ := strconv.Atoi(targetUserIDStr)
+
+	isOnline := ws.WSmanager.Connections[userID] != nil
+	user := manager.GetUserByID(userID)
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"isOnline":   isOnline,
+		"lastOnline": user.LastOnline,
 	})
 }

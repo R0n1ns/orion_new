@@ -28,6 +28,17 @@ func SendCountConn() {
 	}
 }
 
+func updateOnlineStatus() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		for userID := range WSmanager.Connections {
+			manager.UpdateLastOnline(userID, time.Now())
+		}
+	}
+}
+
 // init инициализирует менеджер WebSocket: устанавливает апгрейдер и инициализирует карту подключений.
 func init() {
 	WSmanager.Upgrader = websocket.Upgrader{
@@ -38,6 +49,7 @@ func init() {
 	}
 	WSmanager.Connections = make(map[uint]*websocket.Conn)
 	go SendCountConn()
+	go updateOnlineStatus()
 
 }
 
@@ -56,13 +68,18 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Println("WebSocket upgrade error:", err)
 		return
 	}
+	manager.UpdateLastOnline(userID, time.Now())
 	ws.Connections[userID] = conn
 	log.Printf("User %d connected", userID)
 
 	defer func() {
 		conn.Close()
 		delete(ws.Connections, userID)
+		manager.UpdateLastOnline(userID, time.Now())
 		log.Printf("User %d disconnected", userID)
+
+		// Обновляем LastOnline при отключении
+		manager.UpdateLastOnline(userID, time.Now())
 	}()
 
 	for {

@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"context"
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -8,6 +9,7 @@ import (
 	"orion/data/models"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -348,12 +350,70 @@ func UpdateUser(userID uint, Mail, UserName, Bio string) error {
 	return nil
 }
 
-// BlockUser добавляет блокировку пользователя
+// StartUnblockWorker запускает фоновый процесс для разблокировки пользователей
+func StartUnblockWorker(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			unblockUsers()
+		}
+	}
+}
+
+func unblockUsers() {
+	now := time.Now()
+	result := DB.Model(&models.User{}).
+		Where("is_blocked = ? AND blocking_up_to <= ?", true, now).
+		Updates(map[string]interface{}{
+			"is_blocked":     false,
+			"blocking_up_to": now,
+		})
+
+	if result.Error != nil {
+		log.Printf("Unblock worker error: %v", result.Error)
+	} else if result.RowsAffected > 0 {
+		log.Printf("Unblocked %d users", result.RowsAffected)
+	}
+}
+
+// BlockUser добавляет блокировку пользователя и проверяет лимит блокировок
 func BlockUser(blockerID, blockedID uint) error {
+	// Получаем лимит блокировок
+	blockLimit, _ := strconv.Atoi(os.Getenv("BLOCK_LIMIT"))
+	if blockLimit == 0 {
+		blockLimit = 2 // Значение по умолчанию
+	}
+
+	// Добавляем блокировку
 	blocker := models.User{ID: blockerID}
 	blocked := models.User{ID: blockedID}
-	err := DB.Model(&blocker).Association("BlockedUsers").Append(&blocked)
-	return err
+	if err := DB.Model(&blocker).Association("BlockedUsers").Append(&blocked); err != nil {
+		return err
+	}
+
+	// Проверяем количество блокировок
+	var blockCount int64
+	if err := DB.Table("user_blocks").
+		Where("blocker_id = ?", blockedID).
+		Count(&blockCount).Error; err != nil {
+		return err
+	}
+
+	// Если достигнут лимит - блокируем на 1 день
+	if int(blockCount) >= blockLimit {
+		unblockTime := time.Now().Add(24 * time.Hour)
+		return DB.Model(&blocked).
+			Updates(map[string]interface{}{
+				"is_blocked":     true,
+				"blocking_up_to": unblockTime,
+			}).Error
+	}
+	return nil
 }
 
 // UnblockUser удаляет блокировку
@@ -390,4 +450,19 @@ func CheckIfBlocked(chatID uint, userID uint) (bool, error) {
 	}
 
 	return IsBlocked(userID, otherUserID) || IsBlocked(otherUserID, userID), nil
+}
+
+// UpdateLastOnline обновляет время последней активности пользователя
+func UpdateLastOnline(userID uint, lastOnline time.Time) error {
+	return DB.Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("last_online", lastOnline).Error
+}
+
+func GetUnreadCount(chatID, userID uint) int {
+	var count int64
+	DB.Model(&models.Message{}).
+		Where("channel_id = ? AND user_id != ? AND readed = false", chatID, userID).
+		Count(&count)
+	return int(count)
 }
