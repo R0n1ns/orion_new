@@ -290,6 +290,117 @@
         }
         .online { background-color: #4CAF50; }
         .offline { background-color: #F44336; }
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+            border-bottom: 1px solid #eee;
+        }
+
+        .chat-item:hover {
+            background: #f5f5f5;
+        }
+
+        .chat-header-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .chat-name {
+            font-weight: 500;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .chat-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .chat-footer-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .chat-status.online {
+            background: #4CAF50;
+        }
+
+        .chat-status.offline {
+            background: #ff5252;
+        }
+
+        .unread-count {
+            background: #2196F3;
+            color: white;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: auto;
+        }
+        /* Добавьте эти стили в существующий CSS */
+        .chat-body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 10px;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 20px;
+            max-width: 70%;
+            position: relative;
+            word-break: break-word;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .message.sent {
+            background: #dcf8c6;
+            border: 2px solid #4CAF50;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+            margin-right: 15px;
+        }
+
+        .message.received {
+            background: #ffffff;
+            border: 2px solid #2196F3;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+            margin-left: 15px;
+        }
+
+        .message-meta {
+            display: block;
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .message.sent .message-meta {
+            color: #2d862d;
+        }
+
+        .message.received .message-meta {
+            color: #1a53ff;
+        }
+
+        .status-icon {
+            margin-left: 8px;
+            font-size: 0.8em;
+        }
     </style>
 </head>
 <body>
@@ -641,13 +752,18 @@
                     updateAccountInfo();
                 }
                 if (data.chats) {
+                    console.log(data.chats)
                     chats = data.chats.map(chat => ({
                         id: chat.id,
                         username: chat.name,
                         userPhoto: chat.profile_picture,
                         readed: chat.readed,
                         isPrivate: chat.Private,
-                        users: chat.users
+                        users: chat.users,
+                        last_activity: chat.last_activity,
+                        unread_count: chat.unread_count,
+                        is_online: chat.is_online,
+
                     }));
                     updateChatList();
                     updateChatHeader(); // Обновляем заголовок если есть активный чат
@@ -774,39 +890,90 @@
     // Обновление списка чатов
     // Обновленная функция updateChatList
     function updateChatList() {
+        const chatListDiv = document.getElementById("chat-list");
         chatListDiv.innerHTML = "";
+
         chats.forEach(chat => {
             const chatItem = document.createElement("div");
             chatItem.className = "chat-item";
-
-            // Добавляем обработчик ко всему элементу
             chatItem.addEventListener("click", () => handleChatSelect(chat.id));
 
-            // Аватар
+            // Аватар чата
             const avatar = document.createElement("img");
             avatar.className = "chat-avatar";
             avatar.src = chat.userPhoto || "https://via.placeholder.com/40";
 
-            // Информация о чате
-            const chatInfo = document.createElement("div");
-            chatInfo.className = "chat-info";
+            // Основной блок информации
+            const infoBlock = document.createElement("div");
+            infoBlock.className = "chat-info";
 
-            const chatName = document.createElement("h3");
-            chatName.textContent = chat.username;
+            // Верхняя линия (имя + время)
+            const headerLine = document.createElement("div");
+            headerLine.className = "chat-header-line";
 
-            // Счетчик непрочитанных
-            if (unreadMessages[chat.id] > 0) {
-                const unread = document.createElement("span");
+            const name = document.createElement("span");
+            name.className = "chat-name";
+            name.textContent = chat.username;
+
+            const time = document.createElement("span");
+            time.className = "chat-time";
+            time.textContent = formatLastActivity(chat.last_activity);
+
+            headerLine.appendChild(name);
+            headerLine.appendChild(time);
+
+            // Нижняя линия (статус + непрочитанные)
+            const footerLine = document.createElement("div");
+            footerLine.className = "chat-footer-line";
+
+            const status = document.createElement("div");
+            status.className = `chat-status ${chat.is_online ? "online" : "offline"}`;
+            status.title = chat.is_online
+                ? "В сети"
+                : `Был в сети ${new Date(chat.last_activity).toLocaleString("ru-RU")}`;
+
+            // Непрочитанные сообщения
+            if (chat.unread_count > 0) {
+                const unread = document.createElement("div");
                 unread.className = "unread-count";
-                unread.textContent = unreadMessages[chat.id];
-                chatInfo.appendChild(unread);
+                unread.textContent = chat.unread_count;
+                footerLine.appendChild(unread);
             }
 
-            // Собираем структуру
-            chatInfo.appendChild(chatName);
+            footerLine.appendChild(status);
+
+            // Собираем блоки
+            infoBlock.appendChild(headerLine);
+            infoBlock.appendChild(footerLine);
+
             chatItem.appendChild(avatar);
-            chatItem.appendChild(chatInfo);
+            chatItem.appendChild(infoBlock);
             chatListDiv.appendChild(chatItem);
+        });
+    }
+
+    // Вспомогательная функция для форматирования времени
+    function formatLastActivity(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+
+        // Сегодня
+        if (date.toDateString() === now.toDateString()) {
+            return date.toLocaleTimeString("ru-RU", {
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+
+        // Вчера
+        if (date.getDate() === now.getDate() - 1) {
+            return "Вчера";
+        }
+
+        // Старше 2 дней
+        return date.toLocaleDateString("ru-RU", {
+            day: "numeric",
+            month: "short"
         });
     }
 
@@ -818,7 +985,9 @@
         if (chat) {
             // Обновляем заголовок
             document.getElementById("chat-title").textContent = chat.username;
-
+            document.getElementById("chat-info-status").textContent = chat.is_online
+                ? "В сети"
+                : `Был в сети ${new Date(chat.last_activity).toLocaleString()}`;
             // Обновляем аватар в заголовке
             const headerAvatar = document.getElementById("chat-user-photo");
             if (headerAvatar) {
@@ -873,7 +1042,7 @@
                 <img src="${user.profile_picture || 'https://via.placeholder.com/40'}"
                      class="search-result-avatar">
                 <span>${user.username}</span>
-                ${user.chat_id === -1 ? `<span class="existing-chat-badge">Чат существует</span>` : '<span class="existing-chat-badge">Чат не существует</span>'}
+                ${user.chat_id === -1 ? `<span class="existing-chat-badge">Чат не существует</span>` : '<span class="existing-chat-badge">Чат существует</span>'}
             `;
                 item.addEventListener("click", () => handleUserSelect(user));
                 searchResultsDiv.appendChild(item);

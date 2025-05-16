@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -13,6 +14,7 @@ import (
 	"orion/server/services/ws"
 	"os"
 	"strconv"
+	"time"
 )
 
 func init() {
@@ -32,6 +34,8 @@ Package main является точкой входа в приложение.
 */
 // main инициализирует маршруты, применяет CORS middleware и запускает HTTP-сервер.
 func main() {
+	ctx := context.Background()
+	go manager.StartUnblockWorker(ctx, 1*time.Minute) // Проверка каждые 5 минут
 
 	port, _ := strconv.Atoi(os.Getenv("SERVICE_PORT"))
 
@@ -60,6 +64,8 @@ func main() {
 	serviceRouter.HandleFunc("/api/unblock", handlers2.UnblockUserHandler).Methods("POST")
 	serviceRouter.HandleFunc("/api/block-status", handlers2.CheckUserBlockedHandler).Methods("GET")
 	serviceRouter.HandleFunc("/api/mutual-block", handlers2.CheckMutualBlockHandler).Methods("GET")
+	serviceRouter.HandleFunc("/api/online-status", handlers2.OnlineStatusHandler).Methods("GET")
+
 	// Метрики Prometheus
 	serviceRouter.Handle("/metrics", promhttp.Handler())
 

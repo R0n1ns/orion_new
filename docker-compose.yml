@@ -11,16 +11,6 @@ services:
     networks:
       - localNetwork
 
-  consul:
-    image: consul:1.1.0
-    container_name: consul
-    command: agent -dev -client=0.0.0.0
-    ports:
-      - "8500:8500"
-    networks:
-      - localNetwork
-      - serversNetwork
-
   frontclient:
     build:
       context: .
@@ -41,11 +31,9 @@ services:
       DATABASE_URL: postgresql://user:password@orion-postgres-1:5432/orion
     depends_on:
       - server-app
-      - consul
 
   server-app:
     build: .
-    # No need to expose ports directly as the frontclient will act as a gateway
     ports:
        - "80:80"
     networks:
