@@ -281,6 +281,15 @@
             cursor: not-allowed;
             opacity: 0.7;
         }
+        .online-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 8px;
+            display: inline-block;
+        }
+        .online { background-color: #4CAF50; }
+        .offline { background-color: #F44336; }
     </style>
 </head>
 <body>
@@ -864,7 +873,7 @@
                 <img src="${user.profile_picture || 'https://via.placeholder.com/40'}"
                      class="search-result-avatar">
                 <span>${user.username}</span>
-                ${user.chat_id ? `<span class="existing-chat-badge">Чат существует</span>` : ''}
+                ${user.chat_id === -1 ? `<span class="existing-chat-badge">Чат существует</span>` : '<span class="existing-chat-badge">Чат не существует</span>'}
             `;
                 item.addEventListener("click", () => handleUserSelect(user));
                 searchResultsDiv.appendChild(item);
