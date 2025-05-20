@@ -1,12 +1,16 @@
 package ws
 
 import (
+	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
 	"orion/data/manager"
 	"orion/server/services/jwt"
 	"orion/server/services/metrics"
+	"orion/server/services/minio"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -164,6 +168,22 @@ func (ws *WS) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		if manager.IsBlocked(userID, otherUserID) {
 			log.Printf("Message blocked: users %d and %d are blocked", userID, otherUserID)
 			continue
+		}
+		// В блоке обработки RcvdMessage:
+		if msg.Message != "" || msg.Image != "" {
+			// Добавляем сообщение в БД
+			if msg.Image != "" {
+				// Сохраняем изображение в MinIO
+				hash := md5.Sum([]byte(msg.Image))
+				imageHex := hex.EncodeToString(hash[:])
+				err := minio.UploadImage(context.Background(), imageHex+".jpg", []byte(msg.Image), "image/jpeg")
+				if err != nil {
+					log.Println("Image upload error:", err)
+				}
+				manager.AddMessage(userID, NewChatId, "[image]"+imageHex)
+			} else {
+				manager.AddMessage(userID, NewChatId, msg.Message)
+			}
 		}
 		// Добавляем сообщение
 		manager.AddMessage(userID, NewChatId, msg.Message)

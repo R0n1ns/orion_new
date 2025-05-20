@@ -13,14 +13,11 @@ type Querys struct {
 	Query  interface{} `json:"query"`
 }
 
-// RcvdMessage описывает структуру запроса на отправку сообщения от клиента.
-//
-// Пример:
-//
-//	{ "method": "RcvdMessage", "query": { "chatId": 1, "message": "Текст сообщения" } }
+// RcvdMessage описывает структуру запроса на отправку сообщения/изображения
 type RcvdMessage struct {
 	ChatId  int    `json:"chatId"`
-	Message string `json:"message"`
+	Message string `json:"message,omitempty"` // Текст (опционально)
+	Image   string `json:"image,omitempty"`   // Base64 (опционально)
 }
 
 // GetChat описывает запрос для получения информации о конкретном чате.
