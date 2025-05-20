@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"orion/data/manager"
+	"orion/server/data/manager"
 	"orion/server/services/jwt"
 	"orion/server/services/metrics"
 	"time"

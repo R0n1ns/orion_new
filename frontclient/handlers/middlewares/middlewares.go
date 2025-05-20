@@ -3,6 +3,7 @@ package middlewares
 import (
 	"log"
 	"net/http"
+	"orion/frontclient/data/manager"
 	"orion/frontclient/services/metrics"
 	"orion/frontclient/utils/env"
 	"orion/frontclient/utils/jwt"
@@ -12,7 +13,6 @@ import (
 	"github.com/didip/tollbooth/v7"
 	"github.com/didip/tollbooth/v7/limiter"
 	"github.com/prometheus/client_golang/prometheus"
-	"orion/data/manager"
 )
 
 // Настроенные глобально лимитеры для публичных и авторизованных запросов

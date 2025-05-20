@@ -6,7 +6,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
-	"orion/data/models"
+	"orion/server/data/models"
 	"orion/server/services/env"
 	"os"
 	"sort"

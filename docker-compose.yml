@@ -21,14 +21,12 @@ services:
       - localNetwork
       - serversNetwork
     environment:
-      CONSUL_ADDRESS: consul:8500
       SERVICE_PORT: 3333
-      SERVICE_NAME: api-handlers
-      SERVICE_ID: api-gateway1
-      SERVICE_WEIGHT: 1.0
       SERVER_URL: http://orion-server-app-1:80
       JWT_SECRET: dsfgbrkjewrw324wdf
       DATABASE_URL: postgresql://user:password@orion-postgres-1:5432/orion
+      RPS_public: 3
+      RPS_auth: 3
     depends_on:
       - server-app
 
@@ -62,6 +60,14 @@ services:
       networks:
         - localNetwork
 
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - localNetwork
+  
   postgres:
     image: postgres:latest
     environment:

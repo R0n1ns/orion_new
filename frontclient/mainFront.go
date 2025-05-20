@@ -15,10 +15,8 @@ import (
 )
 
 func main() {
-	serverURL := env.GetEnv("SERVER_URL", "http://server-app:80")
-
-	serverProxy, _ := proxys.CreateReverseProxy(serverURL)
-	wsProxy, _ := proxys.CreateReverseProxy(serverURL)
+	serverProxy, _ := proxys.CreateReverseProxy(env.ServerURL)
+	wsProxy, _ := proxys.CreateReverseProxy(env.ServerURL)
 
 	r := mux.NewRouter()
 
@@ -40,6 +38,6 @@ func main() {
 	// Метрики
 	r.Handle("/metrics", promhttp.Handler())
 
+	log.Println("Клиент запущен на порту:", env.ServicePort)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", env.ServicePort), r))
-	fmt.Println("Сервер запущен на порту:", env.ServicePort)
 }

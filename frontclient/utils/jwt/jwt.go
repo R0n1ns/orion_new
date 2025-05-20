@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"net/http"
-	"os"
+	"orion/frontclient/utils/env"
 	"time"
 )
 
@@ -22,13 +22,12 @@ func ExtractJWT(w http.ResponseWriter, r *http.Request) (uint, error) {
 		return 0, fmt.Errorf("missing token cookie")
 	}
 
-	secretKey := []byte(os.Getenv("JWT_SECRET"))
 	token, err := jwt.ParseWithClaims(cookie.Value, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		// Проверка алгоритма подписи
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return secretKey, nil
+		return env.SecretKey, nil
 	})
 	if err != nil {
 		return 0, fmt.Errorf("invalid token: %w", err)

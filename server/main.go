@@ -8,7 +8,7 @@ import (
 	"github.com/rs/cors"
 	"log"
 	"net/http"
-	"orion/data/manager"
+	manager2 "orion/server/data/manager"
 	"orion/server/handlers/chat"
 	"orion/server/handlers/login"
 	"orion/server/handlers/messages"
@@ -20,7 +20,7 @@ import (
 )
 
 func init() {
-	manager.Migrate()
+	manager2.Migrate()
 }
 
 /*
@@ -37,7 +37,7 @@ Package main является точкой входа в приложение.
 // main инициализирует маршруты, применяет CORS middleware и запускает HTTP-сервер.
 func main() {
 	ctx := context.Background()
-	go manager.StartUnblockWorker(ctx, time.Duration(env.BlockTimeCheck)*time.Minute) // Проверка каждые 5 минут
+	go manager2.StartUnblockWorker(ctx, time.Duration(env.BlockTimeCheck)*time.Minute) // Проверка каждые 5 минут
 
 	// Создание роутера
 	r := mux.NewRouter()
@@ -65,6 +65,6 @@ func main() {
 		AllowCredentials: true,
 	}).Handler(r)
 
-	fmt.Println("Сервер запущен на http://localhost:", env.Port)
+	log.Println("Сервер запущен на http://localhost:", env.Port)
 	log.Fatal(http.ListenAndServe(fmt.Sprint(":", env.Port), handler))
 }

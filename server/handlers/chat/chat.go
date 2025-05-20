@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"net/http"
-	"orion/data/manager"
+	"orion/server/data/manager"
 	"orion/server/services/jwt"
 	"orion/server/services/minio"
 	"orion/server/services/ws"

@@ -1,7 +1,7 @@
 package manager
 
 import (
-	"orion/data/models"
+	"orion/server/data/models"
 )
 
 func Migrate() {
