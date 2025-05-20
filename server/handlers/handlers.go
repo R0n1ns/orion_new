@@ -32,6 +32,7 @@ func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	chatsJSON := make([]map[string]interface{}, 0)
+	user := manager.GetUserByID(userID)
 
 	for _, chat := range chats {
 		users, _ := manager.GetUsersInChat(chat.ID)
@@ -73,12 +74,12 @@ func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
 			"last_activity":   lastOnline.Format(time.RFC3339),
 			"is_online":       isOnline,
 			"unread_count":    manager.GetUnreadCount(chat.ID, userID),
+			"Bio":             user.Bio,
 		}
 
 		chatsJSON = append(chatsJSON, chatJSON)
 	}
 
-	user := manager.GetUserByID(userID)
 	resp := map[string]interface{}{
 		"chats": chatsJSON,
 		"info": map[string]interface{}{
@@ -88,7 +89,7 @@ func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
 			"IsBlocked":      user.IsBlocked,
 			"LastOnline":     user.LastOnline.Format(time.RFC3339),
 			"ProfilePicture": minio.GetPhoto(user.ProfilePicture),
-			"Biom":           user.Bio,
+			"Bio":            user.Bio,
 		},
 	}
 
