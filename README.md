@@ -59,3 +59,54 @@
 <code>gateway_rate_limit_blocked_total</code> - заблокированные запросы
 </div>
 </div>
+
+<h2>Сервер</h2>
+
+<div class="container">
+<h3>Основные функции</h3>
+<ul>
+<li>Регистрация пользователей</li>
+<li>WebSocket чат в реальном времени</li>
+<li>Управление профилями (MinIO для аватарок)</li>
+<li>Система блокировок</li>
+<li>Метрики Prometheus</li>
+</ul>
+
+<h3>Технологии</h3>
+<table>
+<tr><td>Язык</td><td>Go</td></tr>
+<tr><td>Фреймворк</td><td>Gorilla Mux</td></tr>
+<tr><td>База данных</td><td>PostgreSQL (GORM)</td></tr>
+<tr><td>Файловое хранилище</td><td>MinIO</td></tr>
+</table>
+
+<h3>API Endpoints</h3>
+<div class="endpoint">
+<strong>Аутентификация:</strong><br>
+• <code>POST /service/api/login</code><br>
+• <code>POST /service/api/register</code><br><br>
+
+<strong>Чат:</strong><br>
+• <code>GET /service/api/chats</code><br>
+• <code>POST /service/api/chat</code><br><br>
+
+<strong>Пользователи:</strong><br>
+• <code>PUT /service/api/profile</code><br>
+• <code>POST /service/api/profile/photo</code>
+</div>
+
+<h3>Метрики сервера</h3>
+<ul>
+<li>Время обработки сообщений</li>
+<li>Количество активных чатов</li>
+<li>Счётчик ошибок</li>
+<li>Время работы сервера</li>
+</ul>
+
+<h3>Безопасность</h3>
+<ul>
+<li>CORS с ограниченными origin</li>
+<li>Проверка блокировок перед отправкой сообщений</li>
+<li>Валидация JWT токенов</li>
+</ul>
+</div>
