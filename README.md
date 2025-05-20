@@ -59,22 +59,3 @@
 <code>gateway_rate_limit_blocked_total</code> - заблокированные запросы
 </div>
 </div>
-
-<h2>Сервер</h2>
-
-<h1>Архитектура сервера чат-системы</h1><div class="container"> <h2>Основные особенности сервера</h2> <ul> <li><strong>3-уровневая архитектура</strong>: Web Client → Server (прямое взаимодействие)</li> <li><strong>Технологии</strong>: <ul> <li>Gorilla Mux для маршрутизации HTTP</li> <li>GORM + PostgreSQL для хранения структурированных данных</li> <li>MinIO для хранения изображений профилей</li> <li>WebSocket (Gorilla) для реального времени</li> </ul> </li> <li><strong>Метрики</strong>: Prometheus + Grafana (время обработки, активные чаты, ошибки, аптайм)</li> <li><strong>Безопасность</strong>: JWT-аутентификация, CORS, блокировка пользователей</li> </ul> </div><h2>Основные функции сервера</h2> <div class="container"> <ul> <li>Управление пользователями: регистрация, блокировка, профиль</li> <li>Создание чатов (каналов) и управление ими</li> <li>Обмен сообщениями в реальном времени через WebSocket</li> <li>Хранение и отдача медиа через MinIO</li> <li>Сбор метрик производительности</li> <li>Обновление статусов онлайн/оффлайн</li> </ul> </div><h2>Архитектура компонентов</h2> <div class="container"> <div class="endpoint"> <strong>Маршруты (HTTP):</strong><br> • <code>/service/api/login</code> – аутентификация<br> • <code>/service/api/register</code> – регистрация<br> • <code>/service/api/chats</code> – управление чатами<br> • <code>/service/api/messages</code> – работа с сообщениями<br> • <code>/service/api/profile</code> – профиль пользователя<br> • <code>/service/api/block</code> – блокировка пользователей<br>
-<strong>WebSocket:</strong>
-
-• <code>/service/ws</code> – установка соединения для чатов
-
-<strong>Метрики:</strong>
-
-• <code>/service/metrics</code> – эндпоинт Prometheus
-
-</div><h3>Схема взаимодействия</h3> <pre> Client → HTTP (REST) ├── User Management ├── Chat Operations └── Metrics
-Client → WebSocket
-├── Real-time Messages
-└── Online Status Updates
-</pre>
-
-</div><h2>Middleware</h2> <div class="container"> <ul> <li><strong>CORS</strong>: Ограничение доменов, методов и заголовков</li> <li><strong>JWT Validation</strong>: Проверка токена для защищенных эндпоинтов</li> <li><strong>Metrics Collection</strong>: Автоматический сбор данных для Prometheus</li> </ul> </div><h2>Классификация маршрутов</h2> <div class="container"> <table> <tr><th>Тип</th><th>Эндпоинты</th></tr> <tr><td>Публичные</td><td><code>/api/login</code>, <code>/api/register</code>, <code>/metrics</code></td></tr> <tr><td>Защищенные</td><td>Все остальные (требуют JWT в заголовке)</td></tr> </table> </div><h2>Метрики Prometheus</h2> <div class="container metrics"> <code>app_request_total</code> – общее количество HTTP-запросов<br> <code>message_processing_time_seconds</code> – время обработки сообщений<br> <code>ws_manager_active_chats_total</code> – активные WebSocket-соединения<br> <code>app_error_total</code> – счетчик ошибок приложения<br> <code>app_uptime_seconds</code> – время работы сервера<br> <code>app_info</code> – информация о версии приложения<br> </div><h2>Особенности реализации</h2> <div class="container"> <ul> <li><strong>Блокировка пользователей</strong>: <ul> <li>Взаимная проверка блокировок перед отправкой сообщений</li> <li>Автоматическая разблокировка через фоновый worker</li> </ul> </li> <li><strong>Статусы онлайн</strong>: <ul> <li>Обновление через WebSocket-пинги каждые 30 сек</li> <li>Метрика активных чатов</li> </ul> </li> <li><strong>Оптимизация</strong>: <ul> <li>Кеширование Data URL для изображений профилей</li> <li>Batch-обработка сообщений в чатах</li> </ul> </li> </ul> </div>
