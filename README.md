@@ -62,51 +62,19 @@
 
 <h2>Сервер</h2>
 
-<div class="container">
-<h3>Основные функции</h3>
-<ul>
-<li>Регистрация пользователей</li>
-<li>WebSocket чат в реальном времени</li>
-<li>Управление профилями (MinIO для аватарок)</li>
-<li>Система блокировок</li>
-<li>Метрики Prometheus</li>
-</ul>
+<h1>Архитектура сервера чат-системы</h1><div class="container"> <h2>Основные особенности сервера</h2> <ul> <li><strong>3-уровневая архитектура</strong>: Web Client → Server (прямое взаимодействие)</li> <li><strong>Технологии</strong>: <ul> <li>Gorilla Mux для маршрутизации HTTP</li> <li>GORM + PostgreSQL для хранения структурированных данных</li> <li>MinIO для хранения изображений профилей</li> <li>WebSocket (Gorilla) для реального времени</li> </ul> </li> <li><strong>Метрики</strong>: Prometheus + Grafana (время обработки, активные чаты, ошибки, аптайм)</li> <li><strong>Безопасность</strong>: JWT-аутентификация, CORS, блокировка пользователей</li> </ul> </div><h2>Основные функции сервера</h2> <div class="container"> <ul> <li>Управление пользователями: регистрация, блокировка, профиль</li> <li>Создание чатов (каналов) и управление ими</li> <li>Обмен сообщениями в реальном времени через WebSocket</li> <li>Хранение и отдача медиа через MinIO</li> <li>Сбор метрик производительности</li> <li>Обновление статусов онлайн/оффлайн</li> </ul> </div><h2>Архитектура компонентов</h2> <div class="container"> <div class="endpoint"> <strong>Маршруты (HTTP):</strong><br> • <code>/service/api/login</code> – аутентификация<br> • <code>/service/api/register</code> – регистрация<br> • <code>/service/api/chats</code> – управление чатами<br> • <code>/service/api/messages</code> – работа с сообщениями<br> • <code>/service/api/profile</code> – профиль пользователя<br> • <code>/service/api/block</code> – блокировка пользователей<br>
+<strong>WebSocket:</strong>
 
-<h3>Технологии</h3>
-<table>
-<tr><td>Язык</td><td>Go</td></tr>
-<tr><td>Фреймворк</td><td>Gorilla Mux</td></tr>
-<tr><td>База данных</td><td>PostgreSQL (GORM)</td></tr>
-<tr><td>Файловое хранилище</td><td>MinIO</td></tr>
-</table>
+• <code>/service/ws</code> – установка соединения для чатов
 
-<h3>API Endpoints</h3>
-<div class="endpoint">
-<strong>Аутентификация:</strong><br>
-• <code>POST /service/api/login</code><br>
-• <code>POST /service/api/register</code><br><br>
+<strong>Метрики:</strong>
 
-<strong>Чат:</strong><br>
-• <code>GET /service/api/chats</code><br>
-• <code>POST /service/api/chat</code><br><br>
+• <code>/service/metrics</code> – эндпоинт Prometheus
 
-<strong>Пользователи:</strong><br>
-• <code>PUT /service/api/profile</code><br>
-• <code>POST /service/api/profile/photo</code>
-</div>
+</div><h3>Схема взаимодействия</h3> <pre> Client → HTTP (REST) ├── User Management ├── Chat Operations └── Metrics
+Client → WebSocket
+├── Real-time Messages
+└── Online Status Updates
+</pre>
 
-<h3>Метрики сервера</h3>
-<ul>
-<li>Время обработки сообщений</li>
-<li>Количество активных чатов</li>
-<li>Счётчик ошибок</li>
-<li>Время работы сервера</li>
-</ul>
-
-<h3>Безопасность</h3>
-<ul>
-<li>CORS с ограниченными origin</li>
-<li>Проверка блокировок перед отправкой сообщений</li>
-<li>Валидация JWT токенов</li>
-</ul>
-</div>
+</div><h2>Middleware</h2> <div class="container"> <ul> <li><strong>CORS</strong>: Ограничение доменов, методов и заголовков</li> <li><strong>JWT Validation</strong>: Проверка токена для защищенных эндпоинтов</li> <li><strong>Metrics Collection</strong>: Автоматический сбор данных для Prometheus</li> </ul> </div><h2>Классификация маршрутов</h2> <div class="container"> <table> <tr><th>Тип</th><th>Эндпоинты</th></tr> <tr><td>Публичные</td><td><code>/api/login</code>, <code>/api/register</code>, <code>/metrics</code></td></tr> <tr><td>Защищенные</td><td>Все остальные (требуют JWT в заголовке)</td></tr> </table> </div><h2>Метрики Prometheus</h2> <div class="container metrics"> <code>app_request_total</code> – общее количество HTTP-запросов<br> <code>message_processing_time_seconds</code> – время обработки сообщений<br> <code>ws_manager_active_chats_total</code> – активные WebSocket-соединения<br> <code>app_error_total</code> – счетчик ошибок приложения<br> <code>app_uptime_seconds</code> – время работы сервера<br> <code>app_info</code> – информация о версии приложения<br> </div><h2>Особенности реализации</h2> <div class="container"> <ul> <li><strong>Блокировка пользователей</strong>: <ul> <li>Взаимная проверка блокировок перед отправкой сообщений</li> <li>Автоматическая разблокировка через фоновый worker</li> </ul> </li> <li><strong>Статусы онлайн</strong>: <ul> <li>Обновление через WebSocket-пинги каждые 30 сек</li> <li>Метрика активных чатов</li> </ul> </li> <li><strong>Оптимизация</strong>: <ul> <li>Кеширование Data URL для изображений профилей</li> <li>Batch-обработка сообщений в чатах</li> </ul> </li> </ul> </div>
