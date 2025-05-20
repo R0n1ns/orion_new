@@ -7,7 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"orion/frontclient/services"
+	"orion/frontclient/services/metrics"
 	"time"
 )
 
@@ -34,24 +34,6 @@ func (r *responseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return hijacker.Hijack()
 }
 
-// chatHandler отправляет HTML-страницу chat.html
-func ChatHandler(w http.ResponseWriter, r *http.Request) {
-	// Путь к файлу chat.html, при необходимости измените его
-	http.ServeFile(w, r, "templates/chat.html")
-}
-
-// loginhandler отправляет HTML-страницу chat.html
-func Loginhandler(w http.ResponseWriter, r *http.Request) {
-	// Путь к файлу chat.html, при необходимости измените его
-	http.ServeFile(w, r, "templates/login.html")
-}
-
-// registerhandler отправляет HTML-страницу chat.html
-func Registerhandler(w http.ResponseWriter, r *http.Request) {
-	// Путь к файлу chat.html, при необходимости измените его
-	http.ServeFile(w, r, "templates/register.html")
-}
-
 // apiGatewayHandler handles API requests and forwards them to the server
 func ApiGatewayHandler(proxy *httputil.ReverseProxy) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +41,7 @@ func ApiGatewayHandler(proxy *httputil.ReverseProxy) http.HandlerFunc {
 		start := time.Now()
 
 		// Increment request counter
-		services.GatewayRequestCounter.WithLabelValues(r.Method, r.URL.Path).Inc()
+		metrics.GatewayRequestCounter.WithLabelValues(r.Method, r.URL.Path).Inc()
 
 		// Create a response recorder to capture the response
 		responseRecorder := &responseRecorder{
@@ -72,7 +54,7 @@ func ApiGatewayHandler(proxy *httputil.ReverseProxy) http.HandlerFunc {
 
 		// Record request duration
 		duration := time.Since(start).Seconds()
-		services.GatewayRequestDuration.WithLabelValues(r.Method, r.URL.Path).Observe(duration)
+		metrics.GatewayRequestDuration.WithLabelValues(r.Method, r.URL.Path).Observe(duration)
 
 		// Log the request
 		log.Printf("[API Gateway] %s %s -> %d (%.2fs)", r.Method, r.URL.Path, responseRecorder.statusCode, duration)

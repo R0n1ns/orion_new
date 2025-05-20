@@ -6,8 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"os"
-	"strconv"
+	"orion/server/services/env"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -21,40 +20,26 @@ type Manager struct {
 
 var MinioMgr *Manager
 
-//var (
-//	endpoint  string = "localhost:9000"
-//	accessKey string = "youraccesskey"
-//	secretKey string = "yoursecretkey"
-//	useSSL    bool   = false
-//	bucket    string = "images"
-//)
-
 func init() {
 	var err error
-
-	endpoint := os.Getenv("MINIO_ENDPOINT")
-	accessKey := os.Getenv("MINIO_ACCESS_KEY")
-	secretKey := os.Getenv("MINIO_SECRET_KEY")
-	useSSL, _ := strconv.ParseBool(os.Getenv("MINIO_USE_SSL"))
-	bucket := os.Getenv("MINIO_BUCKET")
 
 	// инициализация может происходить так (значения берутся из конфига или переменных окружения):
 	//MinioMgr, err = NewManager("minio:9000", "youraccesskey", "yoursecretkey", "images", false)
 	// Инициализация клиента.
-	client, err := minio.New(endpoint, &minio.Options{Creds: credentials.NewStaticV4(accessKey, secretKey, ""), Secure: useSSL})
+	client, err := minio.New(env.Endpoint, &minio.Options{Creds: credentials.NewStaticV4(env.AccessKey, env.SecretKeyMinio, ""), Secure: env.UseSSL})
 	if err != nil {
 		fmt.Errorf("failed to initialize minio client: %w", err)
 	}
 
 	// Проверка существования бакета.
 	ctx := context.Background()
-	exists, err := client.BucketExists(ctx, bucket)
+	exists, err := client.BucketExists(ctx, env.Bucket)
 	if err != nil {
 		fmt.Errorf("error checking bucket existence: %w", err)
 	}
 	if !exists {
 		// Создание бакета.
-		err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})
+		err = client.MakeBucket(ctx, env.Bucket, minio.MakeBucketOptions{})
 		if err != nil {
 			fmt.Errorf("failed to create bucket: %w", err)
 		}
@@ -62,7 +47,7 @@ func init() {
 
 	MinioMgr = &Manager{
 		Client: client,
-		Bucket: bucket,
+		Bucket: env.Bucket,
 	}
 	//if err != nil {
 	//	fmt.Errorf("Ошибка подключения к minio")

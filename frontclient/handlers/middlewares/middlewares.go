@@ -1,8 +1,11 @@
-package gateway
+package middlewares
 
 import (
 	"log"
 	"net/http"
+	"orion/frontclient/services/metrics"
+	"orion/frontclient/utils/env"
+	"orion/frontclient/utils/jwt"
 	"strconv"
 	"time"
 
@@ -10,16 +13,14 @@ import (
 	"github.com/didip/tollbooth/v7/limiter"
 	"github.com/prometheus/client_golang/prometheus"
 	"orion/data/manager"
-	"orion/frontclient/services"
-	"orion/frontclient/utils"
 )
 
 // Настроенные глобально лимитеры для публичных и авторизованных запросов
 var (
-	publicLimiter = tollbooth.NewLimiter(utils.RPS_public, &limiter.ExpirableOptions{
+	publicLimiter = tollbooth.NewLimiter(env.RPS_public, &limiter.ExpirableOptions{
 		DefaultExpirationTTL: time.Minute,
 	})
-	authLimiter = tollbooth.NewLimiter(utils.RPS_public, &limiter.ExpirableOptions{
+	authLimiter = tollbooth.NewLimiter(env.RPS_public, &limiter.ExpirableOptions{
 		DefaultExpirationTTL: time.Minute,
 	})
 )
@@ -30,13 +31,13 @@ func init() {
 	publicLimiter.SetBurst(10)
 	publicLimiter.SetMessage("Too many requests. Try again later.")
 	publicLimiter.SetOnLimitReached(func(w http.ResponseWriter, r *http.Request) {
-		services.RateLimitBlockedCounter.Inc()
+		metrics.RateLimitBlockedCounter.Inc()
 	})
 
 	// Авторизованный лимитер — по ключу (LimitByKeys)
 	authLimiter.SetMessage("Too many requests. Try again later.")
 	authLimiter.SetOnLimitReached(func(w http.ResponseWriter, r *http.Request) {
-		services.RateLimitBlockedCounter.Inc()
+		metrics.RateLimitBlockedCounter.Inc()
 	})
 }
 
@@ -54,7 +55,7 @@ func CombinedMiddleware(next http.Handler) http.Handler {
 		var UserId string
 		if !isPublic {
 			// Аутентификация JWT
-			id, err := utils.ExtractJWT(w, r)
+			id, err := jwt.ExtractJWT(w, r)
 			if err != nil {
 				log.Printf("JWT error: %v", err)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -90,12 +91,12 @@ func CombinedMiddleware(next http.Handler) http.Handler {
 			if isPublic {
 				UserId = "anonymous"
 			}
-			services.GatewayRequestCounter.WithLabelValues(r.Method, path).Inc()
-			services.UserPathCounter.WithLabelValues(UserId, path).Inc()
-			services.UserRequestCounter.WithLabelValues(UserId).Inc()
+			metrics.GatewayRequestCounter.WithLabelValues(r.Method, path).Inc()
+			metrics.UserPathCounter.WithLabelValues(UserId, path).Inc()
+			metrics.UserRequestCounter.WithLabelValues(UserId).Inc()
 
 			timer := prometheus.NewTimer(
-				services.GatewayRequestDuration.WithLabelValues(r.Method, path),
+				metrics.GatewayRequestDuration.WithLabelValues(r.Method, path),
 			)
 			defer timer.ObserveDuration()
 

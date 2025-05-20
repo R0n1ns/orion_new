@@ -9,11 +9,13 @@ import (
 	"log"
 	"net/http"
 	"orion/data/manager"
-	handlers2 "orion/server/handlers"
+	"orion/server/handlers/chat"
+	"orion/server/handlers/login"
+	"orion/server/handlers/messages"
+	"orion/server/handlers/user"
+	"orion/server/services/env"
 	_ "orion/server/services/metrics"
 	"orion/server/services/ws"
-	"os"
-	"strconv"
 	"time"
 )
 
@@ -35,9 +37,7 @@ Package main является точкой входа в приложение.
 // main инициализирует маршруты, применяет CORS middleware и запускает HTTP-сервер.
 func main() {
 	ctx := context.Background()
-	go manager.StartUnblockWorker(ctx, 1*time.Minute) // Проверка каждые 5 минут
-
-	port, _ := strconv.Atoi(os.Getenv("SERVICE_PORT"))
+	go manager.StartUnblockWorker(ctx, time.Duration(env.BlockTimeCheck)*time.Minute) // Проверка каждые 5 минут
 
 	// Создание роутера
 	r := mux.NewRouter()
@@ -48,23 +48,11 @@ func main() {
 	// WebSocket
 	serviceRouter.HandleFunc("/ws", ws.WSmanager.HandleWebSocket)
 
-	// Auth
-	serviceRouter.HandleFunc("/api/login", handlers2.LoginHandler).Methods("POST")
-	serviceRouter.HandleFunc("/api/register", handlers2.RegisterHandler).Methods("POST")
-
-	// HTTP API для чата и профиля
-	serviceRouter.HandleFunc("/api/chats", handlers2.GetChatsHandler).Methods("GET")
-	serviceRouter.HandleFunc("/api/users", handlers2.GetUsersHandler).Methods("GET")
-	serviceRouter.HandleFunc("/api/chat", handlers2.CreateChatHandler).Methods("POST")
-	serviceRouter.HandleFunc("/api/messages", handlers2.GetChatMessagesHandler).Methods("GET")
-	serviceRouter.HandleFunc("/api/messages/read", handlers2.MarkMessagesReadHandler).Methods("POST", "PUT")
-	serviceRouter.HandleFunc("/api/profile", handlers2.UpdateProfileHandler).Methods("PUT")
-	serviceRouter.HandleFunc("/api/profile/photo", handlers2.UploadProfilePictureHandler).Methods("POST")
-	serviceRouter.HandleFunc("/api/block", handlers2.BlockUserHandler).Methods("POST")
-	serviceRouter.HandleFunc("/api/unblock", handlers2.UnblockUserHandler).Methods("POST")
-	serviceRouter.HandleFunc("/api/block-status", handlers2.CheckUserBlockedHandler).Methods("GET")
-	serviceRouter.HandleFunc("/api/mutual-block", handlers2.CheckMutualBlockHandler).Methods("GET")
-	serviceRouter.HandleFunc("/api/online-status", handlers2.OnlineStatusHandler).Methods("GET")
+	// регистрируем роутеры
+	chat.RegisterRoutes(serviceRouter)
+	messages.RegisterRoutes(serviceRouter)
+	login.RegisterRoutes(serviceRouter)
+	user.RegisterRoutes(serviceRouter)
 
 	// Метрики Prometheus
 	serviceRouter.Handle("/metrics", promhttp.Handler())
@@ -77,6 +65,6 @@ func main() {
 		AllowCredentials: true,
 	}).Handler(r)
 
-	fmt.Println("Сервер запущен на http://localhost:", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprint(":", port), handler))
+	fmt.Println("Сервер запущен на http://localhost:", env.Port)
+	log.Fatal(http.ListenAndServe(fmt.Sprint(":", env.Port), handler))
 }

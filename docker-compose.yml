@@ -16,14 +16,14 @@ services:
       context: .
       dockerfile: Dockerfile.frontclient
     ports:
-      - "3333:3333"  # Expose the API gateway to the outside world
+      - "3333:3333"  # Expose the API handlers to the outside world
     networks:
       - localNetwork
       - serversNetwork
     environment:
       CONSUL_ADDRESS: consul:8500
       SERVICE_PORT: 3333
-      SERVICE_NAME: api-gateway
+      SERVICE_NAME: api-handlers
       SERVICE_ID: api-gateway1
       SERVICE_WEIGHT: 1.0
       SERVER_URL: http://orion-server-app-1:80
@@ -40,17 +40,17 @@ services:
       - localNetwork
       - serversNetwork
     environment:
-      DATABASE_URL: postgresql://user:password@orion-postgres-1:5432/orion
+      DatabaseUrl: postgresql://user:password@orion-postgres-1:5432/orion
       JWT_SECRET: dsfgbrkjewrw324wdf
       MINIO_ENDPOINT: orion-minio-1:9000
       MINIO_ACCESS_KEY: youraccesskey
       MINIO_SECRET_KEY: yoursecretkey
       MINIO_BUCKET: images
       MINIO_USE_SSL: false
+      Minio_SERVICE_PORT: 9000
       SERVICE_PORT: 80
-      SERVICE_NAME: myws
-      SERVICE_ID: myws1
-      SERVICE_WEIGHT: 1.0
+      BlockTimeCheck: 1
+
 
   prometheus:
       image: prom/prometheus

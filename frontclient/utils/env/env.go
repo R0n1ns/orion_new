@@ -1,4 +1,4 @@
-package utils
+package env
 
 import (
 	"os"
@@ -33,7 +33,7 @@ var (
 func init() {
 	// Get environment variables or use defaults
 	ConsulAddress = GetEnv("CONSUL_ADDRESS", "consul:8500")
-	ServiceName = GetEnv("SERVICE_NAME", "api-gateway")
+	ServiceName = GetEnv("SERVICE_NAME", "api-handlers")
 	ServiceAddress = GetEnv("SERVICE_ADDRESS", "")
 	ServicePort = GetEnvAsInt("SERVICE_PORT", 3333)
 	ServiceID = GetEnv("SERVICE_ID", "api-gateway1")

@@ -6,27 +6,27 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
-	"orion/frontclient/gateway"
-	_ "orion/frontclient/services"
-	"orion/frontclient/utils"
+	"orion/frontclient/handlers/gateway"
+	"orion/frontclient/handlers/middlewares"
+	"orion/frontclient/handlers/pages"
+	"orion/frontclient/proxys"
+	_ "orion/frontclient/services/metrics"
+	"orion/frontclient/utils/env"
 )
 
 func main() {
-	serverURL := utils.GetEnv("SERVER_URL", "http://server-app:80")
+	serverURL := env.GetEnv("SERVER_URL", "http://server-app:80")
 
-	serverProxy, _ := gateway.CreateReverseProxy(serverURL)
-	wsProxy, _ := gateway.CreateReverseProxy(serverURL)
+	serverProxy, _ := proxys.CreateReverseProxy(serverURL)
+	wsProxy, _ := proxys.CreateReverseProxy(serverURL)
 
 	r := mux.NewRouter()
 
 	// Глобальный middleware
-	r.Use(gateway.CombinedMiddleware)
+	r.Use(middlewares.CombinedMiddleware)
 
-	// Статические маршруты
-	r.HandleFunc("/chat", gateway.ChatHandler)
-	r.HandleFunc("/login", gateway.Loginhandler)
-	r.HandleFunc("/register", gateway.Registerhandler)
-	r.HandleFunc("/", gateway.ChatHandler)
+	// подключение веб хендлеров
+	pages.RegisterRoutes(r)
 
 	// API Gateway
 	apiRouter := r.PathPrefix("/service").Subrouter()
@@ -40,6 +40,6 @@ func main() {
 	// Метрики
 	r.Handle("/metrics", promhttp.Handler())
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", utils.ServicePort), r))
-	fmt.Println("Сервер запущен на порту:", utils.ServicePort)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", env.ServicePort), r))
+	fmt.Println("Сервер запущен на порту:", env.ServicePort)
 }

@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"orion/data/models"
+	"orion/server/services/env"
 	"os"
 	"sort"
 	"strconv"
@@ -28,8 +29,7 @@ func init() {
 	//}
 	//
 
-	url := os.Getenv("DATABASE_URL")
-	DB, err = gorm.Open(postgres.Open(url), &gorm.Config{})
+	DB, err = gorm.Open(postgres.Open(env.DatabaseUrl), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Some error occured. Err: %s", err)
 	}

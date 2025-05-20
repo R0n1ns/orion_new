@@ -1,4 +1,4 @@
-package services
+package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
@@ -19,7 +19,7 @@ var (
 	GatewayRequestCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "gateway_request_total",
-			Help: "Total number of requests processed by the API gateway, by method and path",
+			Help: "Total number of requests processed by the API handlers, by method and path",
 		},
 		[]string{"method", "path"},
 	)
@@ -27,7 +27,7 @@ var (
 	GatewayRequestDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "gateway_request_duration_seconds",
-			Help:    "Request duration in seconds for the API gateway, by method and path",
+			Help:    "Request duration in seconds for the API handlers, by method and path",
 			Buckets: prometheus.DefBuckets,
 		},
 		[]string{"method", "path"},

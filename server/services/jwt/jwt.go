@@ -4,7 +4,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"log"
 	"net/http"
-	"os"
+	"orion/server/services/env"
 )
 
 // Claims представляет структуру JWT-токена, содержащую ID пользователя и стандартные поля.
@@ -23,10 +23,9 @@ func ExtractJWT(w http.ResponseWriter, r *http.Request) (uint, error) {
 		//http.Error(w, "Unauthorized: Missing JWT", http.StatusUnauthorized)
 		return 0, err
 	}
-	secretKey := []byte(os.Getenv("JWT_SECRET"))
 
 	token, err := jwt.ParseWithClaims(cookie.Value, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return secretKey, nil
+		return []byte(env.SecretKeyJwt), nil // Преобразование строки в []byte
 	})
 	if err != nil {
 		log.Println(1)

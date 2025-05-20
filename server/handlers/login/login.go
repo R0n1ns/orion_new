@@ -1,8 +1,9 @@
-package handlers
+package login
 
 import (
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
 	"net/http"
 	"orion/data/manager"
 	"orion/data/models"
@@ -10,6 +11,12 @@ import (
 	"os"
 	"time"
 )
+
+// RegisterRoutes регистрирует маршруты чата на переданном роутере
+func RegisterRoutes(r *mux.Router) {
+	r.HandleFunc("/api/login", LoginHandler).Methods("POST")
+	r.HandleFunc("/api/register", RegisterHandler).Methods("POST")
+}
 
 // jsonResponse отправляет ответ клиенту в формате JSON с указанным HTTP-статусом.
 // При возникновении ошибок кодирования JSON они игнорируются, так как отправка заголовков уже завершена.
